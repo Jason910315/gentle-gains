@@ -1,8 +1,11 @@
 from pydantic import BaseModel, Field
+from typing import List, Optional
 
 """
 所有資料都需要經過以下定義驗證
 """
+
+# --- food/add 頁面輸入或取得的資料 ---
 # 定義 AI 飲食圖片分析後的輸出結構
 class FoodAnalysisResult(BaseModel):
     calories: int = Field(..., description="熱量 (大卡)")
@@ -20,3 +23,17 @@ class AnalyzeRequest(BaseModel):
     image_base64: str = Field(..., description="圖片的 Base64 字串 (不包含 data:image/... 前綴)")
     food_name: str = Field(..., description="食物的名稱，例如：牛肉麵")
     meal_type: str = Field(..., description="餐點類型，例如：早餐、午餐等")
+
+# --- AI ChatBot 的資料 ---
+class ChatMessage(BaseModel):  
+    role: str      # 'user' or 'assistant'
+    content: str
+
+class ChatRequest(BaseModel):
+    # 前端會把目前的整個對話歷史傳進來，讓 AI 知道上下文
+    messages: List[ChatMessage]
+
+class ChatResponse(BaseModel):
+    role: str
+    content: str
+

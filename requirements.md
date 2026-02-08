@@ -14,9 +14,9 @@
     - [x] `app/workout/page.js`: **Workout Data** (List View).
         - [x] List of past workouts (Text/Table).
         - [x] "Add Workout" Button.
-    - [ ] `app/food/page.js`: **Nutrition Data** (List View).
-        - [ ] List of meal logs (Text/Table).
-        - [ ] "Upload Food" Button.
+    - [x] `app/food/page.js`: **Nutrition Data** (List View).
+        - [x] List of meal logs (Text/Table).
+        - [x] "Upload Food" Button.
     - [ ] `app/chat/page.js`: **AI Coach** (Full screen chat).
 
 ### 1.2 Feature Details
@@ -35,30 +35,30 @@
 
 ## 2. Backend (Phase 3-2: AI & FastAPI)
 ### 2.1 Backend Architecture & Structure
-- [ ] **Folder Structure** (Strict Layered Architecture)
-    - [ ] `backend/app/main.py`: Entry point, CORS, Router include.
+- [x] **Folder Structure** (Strict Layered Architecture)
+    - [x] `backend/app/main.py`: Entry point, CORS, Router include.
     - [ ] `backend/app/config.py`: Environment variables (`.env`).
-    - [ ] `backend/app/schemas.py`: Pydantic Models for Type Safety.
-        - [ ] `FoodAnalysisResult`: Structured Output (Name, Macros, Score).
-    - [ ] `backend/app/services/`: Business Logic.
-        - [ ] `ai_service.py`: OpenAI GPT-4o integration.
-    - [ ] `backend/app/repositories/`: Data Access.
-        - [ ] `food_repository.py`: Surpoabse CRUD.
-    - [ ] `backend/app/routers/`: API Endpoints.
-        - [ ] `food.py`: `POST /api/v1/food/analyze`.
+    - [x] `backend/app/schemas.py`: Pydantic Models for Type Safety.
+        - [x] `FoodAnalysisResult`: Structured Output (Name, Macros, Score).
+    - [x] `backend/app/services/`: Business Logic.
+        - [x] `ai_service.py`: OpenAI GPT-4o integration.
+    - [x] `backend/app/repositories/`: Data Access.
+        - [x] `food_repository.py`: Surpoabse CRUD.
+    - [x] `backend/app/routers/`: API Endpoints.
+        - [x] `food.py`: `POST /api/v1/food/analyze` (Integrated in main.py).
 
 ### 2.2 API Endpoints
-- [ ] `POST /api/v1/food/analyze`:
+- [x] `POST /api/v1/food/analyze`:
     - Input: `AnalyzeRequest` (Base64 Image).
     - Process: `AIService` -> `FoodRepository`.
     - Output: `FoodAnalysisResult`.
 
 ### 2.3 AI Services (`services/`)
-- [ ] **AI Service (`ai_service.py`)**
-    - [ ] Use `client.beta.chat.completions.parse` for Structured Outputs.
-    - [ ] Prompt: Conservative Nutritionist.
-- [ ] **Food Repository (`food_repository.py`)**
-    - [ ] Save results to `food_logs` table in Supabase.
+- [x] **AI Service (`ai_service.py`)**
+    - [x] Use `client.beta.chat.completions.parse` for Structured Outputs.
+    - [x] Prompt: Conservative Nutritionist.
+- [x] **Food Repository (`food_repository.py`)**
+    - [x] Save results to `food_logs` table in Supabase.
     - [ ] **Test**: `test_user_creation`: Verify ID formatting.
 
 ### 2.3 Agent Tools (The "Hands")
