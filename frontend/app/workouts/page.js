@@ -16,44 +16,39 @@ export default function Workout_record() {
     // [] 表示在 component mount 後執行且只執行一次
     useEffect(() => {
         async function fetchWorkouts() {
-            try {
-                // 查詢 workout_logs 表的資料
-                // {} 解構賦值能取出後方返回物件的內部屬性 (data, error)，適合用在 API 請求接收返回值
-                const { data, error } = await supabase
-                    .from("workout_logs")
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                if (error) throw error;
+            // 計算今日與週一隔了幾天
+            const now = new Date();
+            const day = now.getDay();  // 0 (Sun) ~ 6 (Sat)
+            // 如果是週日(0)，要往回推 6 天才是週一；否則往回推 day-1 天
+            const diffToMonday = day === 0 ? 6 : day - 1;
 
-                if (data) {
-                    // 將資料設定到 workouts
-                    setWorkouts(data || []);
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(now.getDate() - diffToMonday);  // 倒帶回週一
+            startOfWeek.setHours(0, 0, 0, 0); // 重置為週一凌晨 00:00
 
-                    // 計算今日與週一隔了幾天
-                    const now = new Date();
-                    const day = now.getDay();  // 0 (Sun) ~ 6 (Sat)
-                    // 如果是週日(0)，要往回推 6 天才是週一；否則往回推 day-1 天
-                    const diffToMonday = day === 0 ? 6 : day - 1;
+            // 查詢 workout_logs 表的資料
+            // {} 解構賦值能取出後方返回物件的內部屬性 (data, error)，適合用在 API 請求接收返回值
+            const { data, error } = await supabase
+                .from("workout_logs")
+                .select('*')
+                .order('created_at', { ascending: false });
 
-                    const startOfWeek = new Date(now);
-                    startOfWeek.setDate(now.getDate() - diffToMonday);  // 倒帶回週一
-                    startOfWeek.setHours(0, 0, 0, 0); // 重置為週一凌晨 00:00
+            if (data) {
+                setWorkouts(data || []);
 
-                    // 篩選出本週的紀錄
-                    const weeklyLogs = data.filter(item => new Date(item.created_at) >= startOfWeek);
+                // 計算本週訓練次數
+                // 過濾出 created_at 大於等於 startOfWeek 的資料
+                const weeklyLogs = data.filter(log => new Date(log.created_at) >= startOfWeek);
 
-                    // 更新 Stats 狀態，狀態改變就能觸發 html 重新渲染，使畫面有資料
-                    setStats({
-                        count: weeklyLogs.length  // 記錄本週內 (週一開始) 訓練次數
-                    });
-                }
-            }
-            catch (error) {
+                setStats({
+                    count: weeklyLogs.length   // 統計出本週的 workout 記錄數，等同於本週訓練次數
+                });
+            } else if (error) {
                 console.log("Error fetching workout logs:", error);
             }
-            finally {
-                setLoading(false);
-            }
+
+            // 最後把 loading 狀態調回去，代表儲存完畢了
+            setLoading(false);
         }
         fetchWorkouts();  // 當畫面第一次載入要執行此程式
     }, []);
@@ -93,10 +88,10 @@ export default function Workout_record() {
                             <TrendingUp className="w-6 h-6" />
                         </div>
                         <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">這一週內訓練動作數</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">這一週內練了幾次</p>
                             <p className="text-2xl font-bold text-slate-700">
                                 {/* 判斷 loading 狀態，並顯示對應資料 */}
-                                {loading ? '讀取中...' : stats.count} <span className="text-sm font-normal text-slate-400">個</span>
+                                {loading ? '讀取中...' : stats.count} <span className="text-sm font-normal text-slate-400">次</span>
                             </p>
                         </div>
                     </div>
