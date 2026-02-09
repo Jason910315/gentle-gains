@@ -1,6 +1,6 @@
 import os
 from supabase import create_client, Client
-from app.schema import FoodAnalysisResult
+from app.data.schema import FoodAnalysisResult
 from dotenv import load_dotenv
 import traceback
 
