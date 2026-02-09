@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';  // 用於頁面跳轉
 import { supabase } from '@/lib/supabaseClient';
-import { ArrowLeft, Save, Dumbbell, Loader2, Eraser } from 'lucide-react';
+import { ArrowLeft, Save, Dumbbell, Loader2, Eraser, MoveHorizontal } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AddWorkoutPage() {
@@ -13,35 +13,67 @@ export default function AddWorkoutPage() {
     // 定義初始值為常數
     const INITIAL_STATE = {
         exercise_name: '',
-        body_part: '胸部',  // 預設值
+        body_part: '胸部',
         weight: '',
+        weight_lb: '',  // 用於顯示 LB
         sets: '',
         reps: '',
     }
 
-    // 定義表單狀態 (記錄健身資訊)，用常數初始化
     const [formData, setFormData] = useState(INITIAL_STATE);
 
-    // 處理使用者輸入使欄位變更 (由 React 控制 Input 內容)
-    const handleChange = (e) => {   // 事件處理函式 (onChange) 會預設塞入 event 物件作為參數
-        const { name, value } = e.target;  // target 指向觸發事件的 html 元素，注意 value 是你當前輸入的東西，還未更新到 State
-        // 更新表單狀態
-        setFormData((prev) => {
-            var newObj = {};
-            // 要保留未修改的欄位的值
-            for (var key in prev) {
-                newObj[key] = prev[key];
-            }
-            newObj[name] = value;  // 將剛輸入的 value 更新到 key 是 name 的位置
-            return newObj;
-        })
+    // 處理其他欄位變更
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value
+        }));
     };
 
-    // 清空表單
+    // 專門處理重量轉換 (KG <-> LB)
+    const handleWeightChange = (e) => {
+        const { name, value } = e.target; // name 為 input 設定的名字
+
+        // 如果清空，就兩個重量都清空
+        if (value === '') {
+            setFormData((prev) => ({
+                ...prev,
+                weight: '',
+                weight_lb: ''
+            }));
+            return;
+        }
+
+        const numValue = parseFloat(value);
+
+        // 如果是輸入 weight 輸入框
+        if (name === 'weight') {
+            // 輸入 KG -> 轉 LB (1kg = 2.20462lb)
+            const lb = (numValue * 2.20462).toFixed(1);
+            // 兩個重量輸入框要同時更新值，讓他一起顯示
+            setFormData((prev) => ({
+                ...prev,
+                weight: value,
+                weight_lb: lb
+            }));
+        } else if (name === 'weight_lb') {
+            // 輸入 LB -> 轉 KG (1lb = 0.453592kg)
+            const kg = (numValue * 0.453592).toFixed(1);
+            setFormData((prev) => ({
+                ...prev,
+                weight: kg,
+                weight_lb: value
+            }));
+        }
+    };
+
+    // 清空整個表單
     const handleClear = () => {
         setFormData((prev) => ({
-            ...prev,       // 先把「所有」舊資料複製進來
-            weight: '',    // 覆蓋要清空的欄位
+            ...prev,
+            weight: '',
+            weight_lb: '',
             sets: '',
             reps: ''
         }));
@@ -58,7 +90,7 @@ export default function AddWorkoutPage() {
             errorMessage.push("請輸入動作名稱!");;
         }
         // 檢查訓練的數據
-        if (!formData.weight || Number(formData.weight) <= 0) {
+        if (!formData.weight || Number(formData.weight) <= 0) { // 僅輸入 weight_lb 也會一起更新 weight
             errorMessage.push("訓練重量不能為 0 或空白");
         }
         if (!formData.reps || Number(formData.reps) <= 0) {
@@ -158,13 +190,12 @@ export default function AddWorkoutPage() {
                                     onChange={handleChange}
                                     className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 transition-all text-slate-700 font-bold appearance-none cursor-pointer"
                                 >
-                                    <option claue="胸部">胸部</option>
-                                    <option claue="胸部">背部</option>
-                                    <option claue="胸部">腿部</option>
-                                    <option claue="胸部">肩膀</option>
-                                    <option claue="胸部">手臂</option>
-                                    <option claue="胸部">核心</option>
-                                    <option claue="胸部">全身</option>
+                                    <option value="胸部">胸部</option>
+                                    <option value="背部">背部</option>
+                                    <option value="腿部">腿部</option>
+                                    <option value="肩膀">肩膀</option>
+                                    <option value="手臂">手臂</option>
+                                    <option value="核心">核心</option>
                                 </select>
                                 {/* 自訂下拉箭頭 */}
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
@@ -174,20 +205,40 @@ export default function AddWorkoutPage() {
                         </div>
                     </div>
 
-                    {/* 第二列：健身數據輸入*/}
-                    <div className="grid grid-cols-3 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-400 uppercase text-center block">重量 (Kg)</label>
-                            <input
-                                type="number"
-                                name="weight"
-                                value={formData.weight}
-                                onChange={handleChange}
-                                placeholder="0"
-                                className="w-full px-2 py-3 text-center bg-slate-50 border-none rounded-xl text-2xl font-black text-slate-700 focus:ring-2 focus:ring-orange-200 transition-all placeholder:text-slate-300"
-                                min="0" step="0.5" // 重量最少要 1kg
-                            />
+                    {/* 第二列：健身數據輸入 */}
+                    <div className="space-y-6">
+                        {/* 第一橫欄：重量 (KG & LB) */}
+                        <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-start">
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase text-center block">重量 (Kg)</label>
+                                <input
+                                    type="number"
+                                    name="weight"
+                                    value={formData.weight}
+                                    onChange={handleWeightChange} // 輸入值一改變就要觸發，做 LB 的同步轉換
+                                    placeholder="0"
+                                    className="w-full px-2 py-3 text-center bg-slate-50 border-none rounded-xl text-2xl font-black text-slate-700 focus:ring-2 focus:ring-orange-200 transition-all placeholder:text-slate-300"
+                                    min="0" step="0.1"
+                                />
+                            </div>
+                            <div className="flex items-center justify-center pt-8 text-slate-400">
+                                <MoveHorizontal className="w-6 h-6" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase text-center block">重量 (Lb)</label>
+                                <input
+                                    type="number"
+                                    name="weight_lb"
+                                    value={formData.weight_lb}
+                                    onChange={handleWeightChange} // 輸入值一改變就要觸發，做 KG 的同步轉換
+                                    placeholder="0"
+                                    className="w-full px-2 py-3 text-center bg-slate-50 border-none rounded-xl text-2xl font-black text-slate-700 focus:ring-2 focus:ring-orange-200 transition-all placeholder:text-slate-300"
+                                    min="0" step="0.1"
+                                />
+                            </div>
                         </div>
+
+                        {/* 第二橫欄：組數 */}
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-slate-400 uppercase text-center block">組數 (Sets)</label>
                             <input
@@ -200,6 +251,8 @@ export default function AddWorkoutPage() {
                                 min="0"
                             />
                         </div>
+
+                        {/* 第三橫欄：次數 */}
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-slate-400 uppercase text-center block">次數 (Reps)</label>
                             <input
@@ -213,6 +266,7 @@ export default function AddWorkoutPage() {
                             />
                         </div>
                     </div>
+
 
                     {/* 第三列：Action Button*/}
                     <div className="pt-6 flex gap-12">
@@ -246,8 +300,8 @@ export default function AddWorkoutPage() {
                             )}
                         </button>
                     </div>
-                </form>
-            </div>
-        </div>
+                </form >
+            </div >
+        </div >
     );
 }
