@@ -1,6 +1,6 @@
 import os
 from openai import OpenAI
-from app.schema import FoodAnalysisResult, AnalyzeRequest
+from app.data.schema import FoodAnalysisResult, AnalyzeRequest
 from dotenv import load_dotenv
 import traceback
 
