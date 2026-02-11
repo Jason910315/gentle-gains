@@ -30,9 +30,19 @@ class ChatMessage(BaseModel):
     content: str
 
 class ChatRequest(BaseModel):
-    # 前端會把目前的整個對話歷史傳進來，讓 AI 知道上下文
-    messages: List[ChatMessage]
+    """
+    前端傳送一句 query + session_id (為了去資料庫抓歷史對話記錄)
+    """
+    session_id: str
+    content: str
 
+# 單則訊息結構 (回傳歷史記錄用)
+class MessageSchema(BaseModel):
+    role: str
+    content: str
+    created_at: Optional[str] = None  # 選填，方便前端顯示時間
+
+# 回傳給前端的 LLM 回答
 class ChatResponse(BaseModel):
     role: str
     content: str
