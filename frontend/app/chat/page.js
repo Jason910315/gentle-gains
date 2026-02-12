@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Loader2 } from 'lucide-react';
+import { Send, User, Bot, Loader2, Trash2, Command } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';  // 將 md 轉成人類的語言
-import remarkGfm from 'remark-gfm'; // 支援表格與代碼塊
+import remarkGfm from 'remark-gfm'; // 支援表格與程式碼區塊
 
 const CURRENT_SESSION_ID = "afc433a0-3898-4f1c-8423-934e553c716f" // 暫時的 session_id
 
@@ -13,6 +13,20 @@ export default function ChatPage() {
 
     // messages 代表所有對話訊息 (包含使用者和 AI 的，所以當其中一方有傳訊息，就要更新狀態，重新渲染前端)
     const [messages, setMessages] = useState([])
+
+    const [showCommandMenu, setShowCommandMenu] = useState(false);  // 是否要顯示快捷鍵視窗
+    const COMMANDS = [
+        {
+            id: 'clear',
+            label: 'clear messages',
+            icon: <Trash2 size={16} />,
+            action: () => {   // 一按快捷鍵，要執行的動作 (清空訊息狀態，等於清空前端訊息框)，但不動資料庫
+                setMessages([]);
+                setShowCommandMenu(false);
+                setInput("");
+            }
+        }
+    ];
 
     const messageEndRef = useRef(null);
 
@@ -26,7 +40,7 @@ export default function ChatPage() {
         scrollToButtom();
     }, [messages]);
 
-    // 頁面重新載入時，先去後端抓取歷史對話記錄
+    // 頁面重新載入時，先去後端抓取歷史對話記錄，才能在前端顯示完整的對話
     useEffect(() => {
         const fetch_caht_history = async () => {
             try {
@@ -55,9 +69,23 @@ export default function ChatPage() {
         fetch_caht_history();
     }, [])  // 代表每次初始載入頁面，都要執行一次載入歷史資料 (每次回來 chat 頁面都是顯示完整對話記錄)
 
+    // 使用者每次在輸入框打字，都會觸發
+    const handleInputChange = (e) => {
+        const value = e.target.value;
+        setInput(value);   // 每打一個字都會更新 input，進而重新渲染頁面
+
+        if (value === '/') {  // 當輸入框內容為 / 時，就顯示快捷鍵選單
+            setShowCommandMenu(true);
+        }
+        else {
+            setShowCommandMenu(false);
+        }
+    };
+
     // query 送出後，呼叫後端 API 進行處理 (memory 功能轉由後端處理)
     const handleSend = async () => {
         if (isLoading || !input.trim()) return;
+        setShowCommandMenu(false);   // 確保快捷鍵選單有關閉
 
         // 使用者第一段提問就要更新 UI 
         const userMessage = { "role": "user", "content": input };
@@ -156,15 +184,39 @@ export default function ChatPage() {
             </main>
 
             {/* 訊息輸入方框 */}
-            <footer className="p-4 bg-white border-t">
+            <footer className="p-4 bg-white border-t relative">
+                {/* 快捷鍵選單 (showCommandMenu 狀態為 true 時觸發)*/}
+                {showCommandMenu && (
+                    <div className="absolute bottom-full left-4 mb-2 w-64 bg-white border rounded-xl shadow-xl overflow-hidden z-20 animate-in slide-in-from-bottom-2 fade-in duration-200">
+                        <div className="bg-gray-50 px-3 py-2 border-b text-xs font-medium text-gray-500 flex items-center gap-2">
+                            <Command size={12} />
+                            快捷指令
+                        </div>
+                        {/* 將 COMMANDS 陣列每一個指令渲染成一個按鈕 */}
+                        {COMMANDS.map((cmd) => (
+                            <button
+                                key={cmd.id}
+                                onClick={cmd.action}
+                                className="w-full text-left px-3 py-3 hover:bg-orange-50 transition-colors flex items-center gap-3 group"
+                            >
+                                <div className="text-gray-400 group-hover:text-orange-500">
+                                    {cmd.icon}
+                                </div>
+                                <div className="text-sm font-medium text-gray-700 group-hover:text-orange-600">
+                                    /{cmd.label}
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                )}
                 <div className="max-w-3xl mx-auto flex gap-2">
                     <input
                         type="text"
                         value={input}
-                        onChange={((e) => setInput(e.target.value))}  // 每輸入一個字都改變狀態，讓畫面能看到輸入的字
+                        onChange={handleInputChange}  // 每輸入一個字都改變狀態，讓畫面能看到輸入的字
                         // 按下 enter 鍵時觸發 handleSend()，但不包括 shift + enter (換行)
                         onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                        placeholder="輸入訊息..."
+                        placeholder="輸入訊息...，或輸入 / 使用指令"
                         className="flex-1 px-4 py-3 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 transition-all"
                         disabled={isLoading}  // 若 isLoading 是 true 則鎖住輸入框
                     />

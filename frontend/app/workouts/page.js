@@ -39,9 +39,11 @@ export default function Workout_record() {
                 // 計算本週訓練次數
                 // 過濾出 created_at 大於等於 startOfWeek 的資料
                 const weeklyLogs = data.filter(log => new Date(log.created_at) >= startOfWeek);
+                // 同一天只算一次，計算這一個禮拜練了幾次
+                const workoutDays = new Set(weeklyLogs.map(log => new Date(log.created_at).toDateString()));
 
                 setStats({
-                    count: weeklyLogs.length   // 統計出本週的 workout 記錄數，等同於本週訓練次數
+                    count: workoutDays.size,   // 統計出本週的 workout 記錄數，等同於本週訓練次數
                 });
             } else if (error) {
                 console.log("Error fetching workout logs:", error);

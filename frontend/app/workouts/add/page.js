@@ -27,7 +27,7 @@ export default function AddWorkoutPage() {
         const { name, value } = e.target;
         setFormData((prev) => ({
             ...prev,
-            [name]: value
+            [name]: value  // name 代表的是 input 元素的 name 屬性，而加上 [] 就可以動態存取
         }));
     };
 
