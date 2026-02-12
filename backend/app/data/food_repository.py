@@ -10,6 +10,7 @@ import traceback
 
 load_dotenv()
 
+# 負責 Supabase 的 CRUD 操作
 class FoodRepository:
     def __init__(self):
         url: str = os.getenv("SUPABASE_URL")

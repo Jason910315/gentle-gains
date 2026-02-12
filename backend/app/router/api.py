@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 from typing import List
-from app.data.schema import AnalyzeRequest, FoodAnalysisResult, ChatRequest, ChatResponse
+from app.data.schema import AnalyzeRequest, FoodAnalysisResult, ChatRequest, ChatResponse, MessageSchema
 from app.services.ai_service import OpenAIService    # 負責 AI 圖片分析
 from app.services.agent_service import AgentService  # 負責 Agent 的服務 (對話、調用工具)
 from app.data.food_repository import FoodRepository
@@ -65,17 +65,28 @@ async def analyze_food(request: AnalyzeRequest):
 )
 async def chat_with_coach(request: ChatRequest):
     """
-    AI 教練對話接口
+    AI 教練對話接口，ChatRequest 的格式是 {"session_id": "xxx", "content": "xxx"}
     """
     try:
         # 直接呼叫 agent_service 的 chat 方法
-        response = agent_service.chat(request.messages)
+        response = agent_service.chat(request.session_id, request.content)
         return response
         
     except Exception as e:
         error_traceback = traceback.format_exc()
         print(f"Chat Error: {error_traceback}")
         raise HTTPException(status_code=500, detail="Coach is currently unavailable.")
+
+
+# 根據 session_id 取出歷史對話，一個 session_id 代表一個唯一的對話
+@router.get(
+    "/chat/history/{session_id}",
+    response_model=List[MessageSchema],  # MessageSchema 是一則訊息的結構
+    summary="Get chat history by session_id"
+)
+async def get_chat_history(session_id: str):
+    history = agent_service.get_history_to_frontend(session_id)
+    return history
 
 @router.get("/")
 def health_check():
