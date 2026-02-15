@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException, status
 from typing import List
-from app.data.schema import AnalyzeRequest, FoodAnalysisResult, ChatRequest, ChatResponse, MessageSchema
+from app.data.schema import AnalyzeRequest, FoodAnalysisResult, ChatRequest, ChatResponse, MessageSchema, WorkoutLogRequest
 from app.services.ai_service import OpenAIService    # 負責 AI 圖片分析
 from app.services.agent_service import AgentService  # 負責 Agent 的服務 (對話、調用工具)
-from app.data.food_repository import FoodRepository
+from app.data.repositories import WorkOutRepository, FoodRepository
 import traceback
 
 """
@@ -16,16 +16,23 @@ router = APIRouter(
 )
 
 food_repo = FoodRepository()  # 負責資料庫操作
+workout_repo = WorkOutRepository()  # 負責資料庫操作
 agent_service = AgentService()  # 負責 AI 助手的實例
 
 # --- 以下開始路由每個 API ---
 
+@router.post("/workout", status_code=status.HTTP_200_OK, summary="Add workout log")
+async def add_workout(workout_data: WorkoutLogRequest):
+    try:
+        response = workout_repo.save_workout_logs(workout_data)
+        return response
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        print(error_traceback)
+        raise HTTPException(status_code=500, detail=f"{error_traceback}")
+
 # 進行 AI 分析飲食圖片的 API 端點
-@router.post(
-    "/analyze", 
-    response_model=FoodAnalysisResult,
-    status_code=status.HTTP_200_OK, 
-    summary="AI analyze food image")
+@router.post("/analyze", response_model=FoodAnalysisResult, status_code=status.HTTP_200_OK, summary="AI analyze food image")
 async def analyze_food(request: AnalyzeRequest):   
     """
     API 主流程: 前端傳資料進來後會先驗證是否符合 AnalyzeRequest 的結構，若符合則會自動轉成 AnalyzeRequest 物件
@@ -57,12 +64,7 @@ async def analyze_food(request: AnalyzeRequest):
         print(error_traceback)
         raise HTTPException(status_code=500, detail=str(error_traceback))
 
-@router.post(
-    "/chat",
-    response_model=ChatResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Chat with AI Coach"
-)
+@router.post("/chat", response_model=ChatResponse, status_code=status.HTTP_200_OK, summary="Chat with AI Coach")
 async def chat_with_coach(request: ChatRequest):
     """
     AI 教練對話接口，ChatRequest 的格式是 {"session_id": "xxx", "content": "xxx"}
@@ -75,15 +77,11 @@ async def chat_with_coach(request: ChatRequest):
     except Exception as e:
         error_traceback = traceback.format_exc()
         print(f"Chat Error: {error_traceback}")
-        raise HTTPException(status_code=500, detail="Coach is currently unavailable.")
+        raise HTTPException(status_code=500, detail=f"{error_traceback}")
 
 
 # 根據 session_id 取出歷史對話，一個 session_id 代表一個唯一的對話
-@router.get(
-    "/chat/history/{session_id}",
-    response_model=List[MessageSchema],  # MessageSchema 是一則訊息的結構
-    summary="Get chat history by session_id"
-)
+@router.get("/chat/history/{session_id}", response_model=List[MessageSchema], summary="Get chat history by session_id")
 async def get_chat_history(session_id: str):
     history = agent_service.get_history_to_frontend(session_id)
     return history
