@@ -112,22 +112,23 @@ export default function AddWorkoutPage() {
                 alert("請輸入動作名稱！");
                 return;
             }
-            const { error } = await supabase
-                .from('workout_logs')
-                .insert([
-                    {
-                        exercise_name: formData.exercise_name,
-                        body_part: formData.body_part,
-                        weight: Number(formData.weight) || 0,  // 轉成數字，若為空則變為 0
-                        sets: Number(formData.sets) || 0,
-                        reps: Number(formData.reps) || 0,
-                        // created_at 會由資料庫自動產生
-                    }
-                ]);
+            // 呼叫 API 以插入資料庫
+            const response = await fetch('http://127.0.0.1:8000/api/v1/workout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    exercise_name: formData.exercise_name,
+                    body_part: formData.body_part,
+                    weight: Number(formData.weight) || 0,  // 轉成數字，若為空則變為 0
+                    sets: Number(formData.sets) || 0,
+                    reps: Number(formData.reps) || 0,
+                    // created_at 會由資料庫自動產生
+                }),
+            });
+            if (!response.ok) throw new Error("Workout API Error");
+            const data = await response.json()
 
-            if (error) throw error;
-
-            router.push('/workouts');
+            router.push('/workouts');  // 新增成功後跳轉到 workouts 頁面
         }
         catch (error) {
             console.error('Error adding workout:', error);

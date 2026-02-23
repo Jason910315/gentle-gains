@@ -8,10 +8,10 @@ import remarkGfm from 'remark-gfm'; // 支援表格與程式碼區塊
 const CURRENT_SESSION_ID = "afc433a0-3898-4f1c-8423-934e553c716f" // 暫時的 session_id
 
 export default function ChatPage() {
-    const [input, setInput] = useState("");  // 使用者當前的 query
-    const [isLoading, setIsLoading] = useState(false);
+    const [input, setInput] = useState("");  // 使用者輸入框內的 query
+    const [loadingMessage, setLoadingMessage] = useState("");  // LLM 思考文字
 
-    // messages 代表所有對話訊息 (包含使用者和 AI 的，所以當其中一方有傳訊息，就要更新狀態，重新渲染前端)
+    // messages 代表所有歷史對話訊息 (包含使用者和 AI 的，所以當其中一方有傳訊息，就要更新狀態，重新渲染前端)
     const [messages, setMessages] = useState([])
 
     const [showCommandMenu, setShowCommandMenu] = useState(false);  // 是否要顯示快捷鍵視窗
@@ -44,7 +44,8 @@ export default function ChatPage() {
     useEffect(() => {
         const fetch_caht_history = async () => {
             try {
-                const res = await fetch(`http://127.0.0.1:8000/api/v1/chat/history/${CURRENT_SESSION_ID}`);
+                // limit=0 代表歷史對話要取全部
+                const res = await fetch(`http://127.0.0.1:8000/api/v1/chat/history/${CURRENT_SESSION_ID}?limit=0`);
 
                 if (!res.ok) throw new Error("Failed to load chat history");
 
@@ -84,39 +85,89 @@ export default function ChatPage() {
 
     // query 送出後，呼叫後端 API 進行處理 (memory 功能轉由後端處理)
     const handleSend = async () => {
-        if (isLoading || !input.trim()) return;
+        // 若 LLM 還在思考或接收到空字串，則不執行
+        if (loadingMessage || !input.trim()) return;
         setShowCommandMenu(false);   // 確保快捷鍵選單有關閉
 
-        // 使用者第一段提問就要更新 UI 
-        const userMessage = { "role": "user", "content": input };
-        setMessages((prev) => [...prev, userMessage])
+        const currentInput = input;
+        setInput("")   // 送出後清空使用者輸入框
 
-        const currentInput = input   // 暫存輸入內容
-        setInput("");  // 送出後要清空輸入 (對話框)
-        setIsLoading(true);
+        // 1. 顯示使用者的提問
+        setMessages((prev) => [...prev, { "role": "user", "content": currentInput }]);
+
+        // 2. 顯示 AI 的回覆 (一開始是預設的，等等會用串流方式接收一段一段訊息)
+        setMessages((prev) => [...prev, { "role": "assistant", "content": "" }]);
+
+        setLoadingMessage("Agent 正在思考中...");
 
         try {
             const response = await fetch('http://127.0.0.1:8000/api/v1/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                // 後端要求的是 ChatRequest 物件
                 body: JSON.stringify({
                     session_id: CURRENT_SESSION_ID,
                     content: currentInput
-                }),  // 傳送 session_id 與使用者提問就好，後端會自動去抓歷史對話記錄
+                }),
             });
 
-            if (!response.ok) throw new Error("chat API Error");
+            if (!response.ok) throw new Error("chat API error");
 
-            const data = await response.json()
-            setMessages((prev) => [...prev, data])  // 將 AI 回傳的訊息加入到 messages 陣列中
+            const reader = response.body.getReader();  // 取得串流
+            const decoder = new TextDecoder("utf-8");  // 將接收到的串流二進位位元組解碼成文字
+
+            // 只要持續有資料傳入，就會一直執行
+            while (true) {
+                // done (布林值)：後端是否已經傳輸完畢並關閉連線
+                // value (二進位資料)：剛接到的那包原始資料
+                const { done, value } = await reader.read();  // 每次讀取的串流資料
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                // 後端傳的資料用 SSE 格式，是以兩個換行符號 \n\n 分隔
+                const lines = chunk.split("\n\n");
+                console.log(lines);
+
+                // 解析每一個資料包
+                for (const line of lines) {
+                    if (line.startsWith("data: ")) {  // 檢查是否為 SSE 格式
+                        const jsonStr = line.substring(6);
+                        if (!jsonStr) continue;
+
+                        try {
+                            setLoadingMessage("");  // 到這一步代表已經開始工具調用或產出回覆，Loading 文字便清空
+                            const parseData = JSON.parse(jsonStr);  // 把字串轉換回 JavaScript 的物件
+                            setMessages((prev) => {
+                                const newMessages = [...prev];
+                                const lastIndex = newMessages.length - 1;  // 剛剛的空 AI 回覆的結尾
+                                newMessages[lastIndex] = {
+                                    ...newMessages[lastIndex],
+                                    // 覆寫最後一則訊息的 content，若沒有 content (已經完成) 就接收空字串
+                                    "content": newMessages[lastIndex].content + (parseData.content || "")
+                                };
+                                return newMessages;
+                            });
+                        }
+                        catch (e) {
+                            console.error("Tool call JSON parse error:", e, line);
+                        }
+                    }
+                }
+            }
         }
         catch (error) {
-            console.error("Chat API Error:", error)
-            setMessages((prev) => [...prev, { "role": "assistant", "content": "抱歉，GentleCoach 大腦暫時短路了，請稍後再試" }])
+            console.error("Chat API Error:", error);
+            // 發生錯誤時，如果 AI 還沒講任何話，補上錯誤提示
+            setLoadingMessage("");
+            setMessages((prev) => {
+                const newMessages = [...prev];
+                const lastIndex = newMessages.length - 1;
+                if (newMessages[lastIndex].content === "") {
+                    newMessages[lastIndex].content = "抱歉，GentleCoach 大腦暫時短路了，請稍後再試🙏";
+                }
+                return newMessages;
+            });
         }
-        finally {
-            setIsLoading(false)
-        };
     };
 
 
@@ -155,12 +206,12 @@ export default function ChatPage() {
 
                         {/* 訊息框 */}
                         <div className={`
-                            max-w-[80%] text-sm leading-relaxed
+                            max-w-[80%] text-sm leading-relaxed whitespace-pre-wrap break-words
                             ${msg.role === 'user'
                                 ? 'px-4 py-2 rounded-2xl bg-gray-800 text-white rounded-tr-none shadow-sm'
                                 : 'text-gray-700 py-2'}
                         `}>
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} >
                                 {msg.content}
                             </ReactMarkdown>
                         </div>
@@ -168,17 +219,19 @@ export default function ChatPage() {
                 ))}
 
                 {/* Loading State */}
-                {isLoading && (
+                {loadingMessage && (
                     <div className="flex gap-3">
                         <div className="w-8 h-8 bg-white border rounded-full flex items-center justify-center">
                             <Bot size={16} className="text-orange-500" />
                         </div>
                         <div className="bg-white px-4 py-2 rounded-2xl rounded-tl-none border flex items-center shadow-sm">
                             <Loader2 className="animate-spin text-gray-400" size={16} />
-                            <span className="text-gray-400 text-xs ml-2">思考中...</span>
+                            <span className="text-gray-800 text-xs ml-2">{loadingMessage}</span>
                         </div>
                     </div>
                 )}
+
+
                 {/* 將底部連結到 useRef 物件，每次 message 改變都會觸發 useEffect，進而執行 scrollToButtom()，自動滾動到底部 */}
                 <div ref={messageEndRef}></div>
             </main>
@@ -215,14 +268,19 @@ export default function ChatPage() {
                         value={input}
                         onChange={handleInputChange}  // 每輸入一個字都改變狀態，讓畫面能看到輸入的字
                         // 按下 enter 鍵時觸發 handleSend()，但不包括 shift + enter (換行)
-                        onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                                e.preventDefault();
+                                handleSend();
+                            }
+                        }}
                         placeholder="輸入訊息...，或輸入 / 使用指令"
                         className="flex-1 px-4 py-3 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 transition-all"
-                        disabled={isLoading}  // 若 isLoading 是 true 則鎖住輸入框
+                        disabled={loadingMessage}  // 若 isLoading 是 true 則鎖住輸入框
                     />
                     <button
                         onClick={handleSend}  // 不只按 enter，按按鈕送出也觸發
-                        disabled={isLoading || !input.trim()}
+                        disabled={loadingMessage || !input.trim()}
                         className="p-3 bg-gray-800 text-white rounded-xlhover:bg-gray-700 disabled:opacity-50 transition-colors"
                     >
                         <Send size={20} />
