@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import StreamingResponse
 from typing import List
 from app.data.schema import AnalyzeRequest, FoodAnalysisResult, ChatRequest, ChatResponse, MessageSchema, WorkoutLogRequest
 from app.services.ai_service import OpenAIService    # 負責 AI 圖片分析
 from app.services.agent_service import AgentService  # 負責 Agent 的服務 (對話、調用工具)
-from app.data.repositories import WorkOutRepository, FoodRepository
+from app.data.repositories import ChatRepository, WorkOutRepository, FoodRepository
 import traceback
 
 """
@@ -17,6 +18,7 @@ router = APIRouter(
 
 food_repo = FoodRepository()  # 負責資料庫操作
 workout_repo = WorkOutRepository()  # 負責資料庫操作
+chat_repo = ChatRepository()  # 負責資料庫操作
 agent_service = AgentService()  # 負責 AI 助手的實例
 
 # --- 以下開始路由每個 API ---
@@ -64,26 +66,27 @@ async def analyze_food(request: AnalyzeRequest):
         print(error_traceback)
         raise HTTPException(status_code=500, detail=str(error_traceback))
 
-@router.post("/chat", response_model=ChatResponse, status_code=status.HTTP_200_OK, summary="Chat with AI Coach")
+@router.post("/chat", status_code=status.HTTP_200_OK, summary="Chat with AI Coach (Streaming)")
 async def chat_with_coach(request: ChatRequest):
     """
     AI 教練對話接口，ChatRequest 的格式是 {"session_id": "xxx", "content": "xxx"}
     """
     try:
-        # 直接呼叫 agent_service 的 chat 方法
-        response = agent_service.chat(request.session_id, request.content)
-        return response
+        # 告訴瀏覽器這是 SSE 格式 (text/event-stream)，是串流傳資料進來
+        return StreamingResponse(
+            agent_service.chat_stream(request.session_id, request.content),
+            media_type="text/event-stream"
+        )
         
     except Exception as e:
-        error_traceback = traceback.format_exc()
-        print(f"Chat Error: {error_traceback}")
-        raise HTTPException(status_code=500, detail=f"{error_traceback}")
+        print(f"Chat Error: {e}")
+        raise HTTPException(status_code=500, detail=f"{e}")
 
 
 # 根據 session_id 取出歷史對話，一個 session_id 代表一個唯一的對話
 @router.get("/chat/history/{session_id}", response_model=List[MessageSchema], summary="Get chat history by session_id")
-async def get_chat_history(session_id: str):
-    history = agent_service.get_history_to_frontend(session_id)
+async def get_chat_history(session_id: str, limit: int):
+    history = chat_repo.get_recent_messages(session_id, limit=limit)
     return history
 
 @router.get("/")

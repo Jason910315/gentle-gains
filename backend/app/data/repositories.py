@@ -15,18 +15,26 @@ class ChatRepository:
             raise ValueError("Supabase URL or Key not found in env")
         self.supabase: Client = create_client(url, key)  # 建立 Supabase 連線
 
-    def get_recent_messages(self, session_id: str, limit: int = 10):
+    def get_recent_messages(self, session_id: str, limit: int):
         """
         取得最近的 N 筆對話記錄，並按時間新舊排序 (給 LLM 讀的順序)
         """
         try:
-            # 根據 session_id 查詢最新到最舊的記錄，並只取前 10 筆
-            response = self.supabase.table("chat_messages")\
+            # 要取出全部的對話
+            if(limit == 0):
+                response = self.supabase.table("chat_messages")\
                 .select("role, content")\
                 .eq("session_id", session_id)\
                 .order("created_at", desc=True)\
-                .limit(limit)\
                 .execute()
+            else:
+                # 根據 session_id 查詢最新到最舊的記錄，並只取前 limit 筆
+                response = self.supabase.table("chat_messages")\
+                    .select("role, content")\
+                    .eq("session_id", session_id)\
+                    .order("created_at", desc=True)\
+                    .limit(limit)\
+                    .execute()
 
             data = response.data
             # 資料庫回傳: [最新, 第二新, 第三新, ...]
