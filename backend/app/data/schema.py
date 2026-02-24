@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 """
 所有資料都需要經過以下定義驗證
@@ -27,7 +27,7 @@ class AnalyzeRequest(BaseModel):
 # 前端傳來的健身記錄請求格式
 class WorkoutLogRequest(BaseModel):
     exercise_name: str = Field(..., description="運動名稱")
-    body_part: str = Field(..., description="訓練部位")
+    body_part: Literal["胸部", "背部", "腿部", "肩膀", "手臂", "核心"] = Field(..., description="訓練部位")
     weight: float = Field(..., description="重量")
     sets: int = Field(..., description="組數")
     reps: int = Field(..., description="次數")
