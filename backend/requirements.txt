@@ -4,4 +4,5 @@ openai
 pydantic
 python-dotenv
 supabase
-openai-agents
+openai-agents==0.2.6
+httpx>=0.27.0,<0.28.0
