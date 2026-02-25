@@ -3,10 +3,32 @@ from agents import function_tool
 from app.data.repositories import WorkOutRepository, FoodRepository
 from app.data.schema import WorkoutLogRequest
 from pydantic import Field
-import traceback
+from datetime import datetime, timezone, timedelta
 
 workout_repo = WorkOutRepository()
 food_repo = FoodRepository()
+
+# --- 輔助 Tools 的函式 ---
+
+# 幫忙把 DB 的 created_at 欄位字串，轉換成台灣時間字串 (LLM 要看)
+def format_utc_to_tw_time(utc_str: str) -> str:
+    try:
+        # Supabase 預設回傳的格式類似: "2026-02-25T02:47:08.55647+00:00"，是字串
+        # 轉成 Python 感知時間物件
+        utc_dt = datetime.fromisoformat(utc_str)
+
+        # 轉換為台灣的時區時間
+        tw_tz = timezone(timedelta(hours=8))
+        tw_datetime = utf_dt.astimezone(tw_tz)
+
+        # 轉成 LLM 容易讀的格式 (乾淨時間字串)
+        return tw_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    except Exception as e:
+        print(f"[時間轉換錯誤] {e}")
+        return utc_str  
+
+
 
 # --- Define Tools ---
 @function_tool
@@ -20,7 +42,7 @@ def log_workout(exercise_name: str, body_part: Literal["胸部","背部","腿部
     try:
         print(f"⚙️ [Tool 執行] log_workout: {body_part} - {exercise_name} {weight}kg")
 
-        # 將參數組裝成 WorkoutLogRequest 格式
+        # 因為 work_repo 內函式吃的是 WorkoutLogRequest 物件，所以要將參數組裝
         workout_data = WorkoutLogRequest(
             exercise_name=exercise_name,
             body_part=body_part,
@@ -52,6 +74,8 @@ def get_recent_workouts(days: int,
         exercise_name: (選填) 限定查詢的特定訓練動作，請保留使用者輸入的中文動作名稱
     """
     print(f"⚙️ [Tool 執行] get_recent_workouts: 查詢最近 {days} 天，部位={body_part}，動作={exercise_name}")
+
+    db_records = workout_repo.get_filtered_workout
 
 # 將所有 tools 打包成一個 list，給 AI 讀取
 AGENT_TOOLS = [log_workout]

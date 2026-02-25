@@ -2,7 +2,7 @@ import os
 from supabase import create_client, Client
 from app.data.schema import FoodAnalysisResult, WorkoutLogRequest
 from dotenv import load_dotenv
-import traceback
+from datetime import datetime, timezone, timedelta
 
 load_dotenv()
 
@@ -42,8 +42,7 @@ class ChatRepository:
             return data[::-1]
 
         except Exception as e:
-            error_traceback = traceback.format_exc()
-            print(f"Error fetching chat history: {error_traceback}")
+            print(f"Error fetching chat history: {e}")
             return []
 
     def create_message(self, session_id: str, role: str, content: str):
@@ -60,8 +59,7 @@ class ChatRepository:
             self.supabase.table("chat_messages").insert(data).execute()
             return True
         except Exception as e:
-            error_traceback = traceback.format_exc()
-            print(f"Error creating chat message: {error_traceback}")
+            print(f"Error creating chat message: {e}")
             return False
 
 # 負責存取 workout_logs database
@@ -91,10 +89,36 @@ class WorkOutRepository:
             else:
                 raise Exception("Failed to save workout log")
         except Exception as e:
-            error_traceback = traceback.format_exc()
-            print(f"Supabase Error: {error_traceback}")
+            print(f"Supabase Error: {e}")
             print(f"資料寫入失敗，但仍返回 AI 分析結果")
             return None
+
+    # 根據使用者的查詢條件，從資料庫中取出最近的健身記錄
+    def get_filtered_workouts(self, days: int, body_part: str = None, exercise_name: str = None):
+        # 取得絕對的現在時間 (UTC)
+        now_utc = datatime.now(timezone.utc)
+        target_date = now_utc - timedelta(days=days)
+        # 資料庫操作只能吃字串，故要轉換為字串格式
+        target_date_str = target_date.isoformat()
+
+        try:
+            # greater than or equal to
+            query = self.supabase.table("workout_logs").select("*").gte("created_at", target_date_str)
+
+            # 根據使用者有給的特定查詢條件，再次過濾結果
+            if body_part:
+                query = query.eq("body_part", body_part)
+            if exercise_name:
+                # 使用者在對話輸入的可能不是精準的名稱，要模糊查詢
+                query = query.eq("exercise_name", f"%{exercise_name}%")
+
+            response = query.order("created_at", desc=True).execute()
+
+            return response.data
+
+        except Exception as e:
+            print(f"查詢最近 {days} 天的健身記錄失敗: {e}")
+            return []
 
 # 負責存取 food_logs database
 class FoodRepository:
@@ -135,7 +159,6 @@ class FoodRepository:
             else:
                 raise Exception("Failed to save food log")
         except Exception as e:
-            error_traceback = traceback.format_exc()
-            print(f"Supabase Error: {error_traceback}")
+            print(f"Supabase Error: {e}")
             print(f"資料寫入失敗，但仍返回 AI 分析結果")
             return None
