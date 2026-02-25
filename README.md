@@ -62,17 +62,17 @@ sequenceDiagram
 GentleGains/
 ├── backend/                # FastAPI 後端服務
 │   ├── app/
-│   │   ├── data/           # Repository 負責資料庫操作與 Schema 驗證
-│   │   ├── services/       # Agent 核心服務邏輯
-│   │   ├── tools/          # Agent 呼叫之工具定義
+│   │   ├── data/           # 負責資料庫操作與 Schema 驗證
+│   │   ├── services/       # Agent 負責對話與調用工具
+│   │   ├── tools/         
 │   │   └── router/         # API Endpoint 端點定義
-│   └── main.py             # Server 啟動入口
+│   └── main.py            
 ├── frontend/               # Next.js 前端應用
-│   ├── app/                # App Router 目錄結構
-│   │   ├── chat/           # AI 聊天室頁面
+│   ├── app/             
+│   │   ├── chat/           # AI 聊天室模組
 │   │   ├── workouts/       # 健身紀錄模組
 │   │   └── food/           # 飲食分析模組        
-└── README.md               # 專案技術說明文件
+└── README.md           
 ```
 
 ### 🔹 Backend - FastAPI
