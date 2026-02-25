@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import remarkBreaks from 'remark-breaks';
 import { Send, User, Bot, Loader2, Trash2, Command } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';  // 將 md 轉成人類的語言
 import remarkGfm from 'remark-gfm'; // 支援表格與程式碼區塊
@@ -206,12 +207,12 @@ export default function ChatPage() {
 
                         {/* 訊息框 */}
                         <div className={`
-                            max-w-[80%] text-sm leading-relaxed whitespace-pre-wrap break-words
+                            max-w-[80%] text-sm leading-relaxed break-words space-y-4 
                             ${msg.role === 'user'
                                 ? 'px-4 py-2 rounded-2xl bg-gray-800 text-white rounded-tr-none shadow-sm'
                                 : 'text-gray-700 py-2'}
                         `}>
-                            <ReactMarkdown remarkPlugins={[remarkGfm]} >
+                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                                 {msg.content}
                             </ReactMarkdown>
                         </div>
