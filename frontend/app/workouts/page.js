@@ -106,6 +106,7 @@ export default function Workout_record() {
                         <div>
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">上次訓練</p>
                             <p className="text-lg font-bold text-slate-700">
+                                {/* .toLocaleDateString() 會自動將時間轉換為本地時區 */}
                                 {loading ? '讀取中...' : (workouts.length > 0 ? new Date(workouts[0].created_at).toLocaleDateString() : '尚未開始')}
                             </p>
                         </div>

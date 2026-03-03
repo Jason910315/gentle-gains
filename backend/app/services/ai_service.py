@@ -1,6 +1,6 @@
 import os
 from openai import OpenAI
-from app.data.schema import FoodAnalysisResult, AnalyzeRequest
+from app.data.schema import FoodAnalysisResult, FoodAnalyzeRequest
 from dotenv import load_dotenv
 import traceback
 
@@ -10,13 +10,10 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 class OpenAIService:
     @staticmethod
-    def analyze_food_image(base64_image: str, food_name: str, meal_type: str) -> FoodAnalysisResult:  # 強制回傳格式
+    def analyze_food_image(image_url: str, food_name: str, meal_type: str) -> FoodAnalysisResult:  # 強制回傳格式
         """
         發送圖片給 GPT-4o 進行分析，強制回傳 FoodAnalysisResult 物件
         """
-        # 若圖片字串前綴帶有 base64，要先清除前面的所有字串，避免重複
-        if "base64," in base64_image:
-            base64_image = base64_image.split("base64,")[1]
             
         system_prompt = """
             你是一位專業的台灣營養師與健身教練。你的專長是視覺化營養估算。
@@ -60,14 +57,14 @@ class OpenAIService:
                         "content":[
                             # image process 的固定格式
                             {
-                                "type": "text", 
+                                "type": "text",      
                                 "text": user_prompt
                             },
                             {
-                                "type": "image_url",
-                                "image_url":{
-                                    "url": f"data:image/jpeg:base64,{base64_image}"
-                                },
+                                "type": "image_url", 
+                                "image_url": {
+                                    "url": image_url  # Supabase 的公開網址，用這個網址到 bucket 內去存取
+                                }
                             },
                         ],
                     },

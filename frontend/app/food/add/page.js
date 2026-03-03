@@ -4,11 +4,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-    Camera, ArrowLeft, UploadCloud,
-    CheckCircle, RefreshCw, X,
-    Coffee, Sun, Moon, Cookie,
-    Star, StarHalf
+    Camera, ArrowLeft, UploadCloud, CheckCircle, RefreshCw, X,
+    Coffee, Sun, Moon, Cookie, Star, StarHalf
 } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function AddFoodPage() {
     const router = useRouter();
@@ -25,6 +24,7 @@ export default function AddFoodPage() {
 
     // 圖片預覽 (顯示在畫面讓使用者確認，還未上傳)
     const [previewUrl, setPreviewUrl] = useState(null);
+    // 存那張圖片
     const [file, setFile] = useState(null);
 
     // AI 分析的結果，並非使用者輸入
@@ -51,7 +51,7 @@ export default function AddFoodPage() {
 
     // 2. 處理函式 ---
 
-    // 照片被選擇後觸發
+    // 照片被選擇後觸發，會去顯示預覽圖片
     const handleFileChange = (e) => {
         const selectedFile = e.target.files[0];
         if (selectedFile) {
@@ -61,16 +61,27 @@ export default function AddFoodPage() {
         }
     };
 
-    // 將使用者上傳的 File 物件轉成 Base64 字串
-    const fileToBase64 = (file) => {
-        return new Promise((resolve, reject) => {
-            // 建立瀏覽器閱讀器物件
-            const reader = new FileReader();
-            reader.readAsDataURL(file);     // 轉成 base64
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = error => reject(error);
-        })
-    };
+    // 輔助上傳圖片到 bucket 上，並回傳公開網址
+    const uploadFoodImage = async(file) => {
+        const fileExt = file.name.split('.')[1];  // 取得圖片副檔名
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`; // 生成唯一的檔名，避免重複
+        const filePath = `food_images/${fileName}`;  // 圖片要上傳到 bucket 的儲存路徑
+
+        // 上傳到名字叫 chat_images 的 bucket 上
+        const {data, error} = await supabase.storage
+            .from('food_images')
+            .upload(filePath, file);
+
+        if (error) throw new error;
+
+        // 取得該圖片的公開存取網址
+        const result = supabase.storage
+            .from('food_images')
+            .getPublicUrl(filePath);
+        const publicUrl = result.data.publicUrl;
+
+        return publicUrl;
+    }
 
     // 點選"新增"按鈕後觸發，呼叫並等待 AI 分析
     const handleAnalyze = async () => {
@@ -81,10 +92,14 @@ export default function AddFoodPage() {
         // 若所有欄位都填妥，上傳後轉換狀態．開始分析
         setStatus('analyzing');
 
+        let uploadImageUrl = null;
+
         // AI 分析
         try {
-            // 1. 將圖片轉成 Base64
-            const base64String = await fileToBase64(file);
+            // 1. 先處理有無圖片
+            if (file){
+                uploadImageUrl = await uploadFoodImage(file);  // 上傳圖片到 supabase，可以透過 uploadImageUrl 存取
+            }
 
             // 2. 呼叫後端 API 進行 AI 分析
             const response = await fetch('http://127.0.0.1:8000/api/v1/analyze', {
@@ -93,7 +108,7 @@ export default function AddFoodPage() {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({  // 將前端的資料轉成字串，傳入定義好的 AnalyzeRequest 物件的格式
-                    image_base64: base64String,
+                    image_url: uploadImageUrl,
                     food_name: formData.food_name,
                     meal_type: formData.meal_type
                 }),

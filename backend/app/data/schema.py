@@ -19,8 +19,8 @@ class FoodAnalysisResult(BaseModel):
     is_saved: bool = Field(True, description="是否成功寫入資料庫")
     
 # 定義前端傳進來的飲食分析請求格式 (前端頁面會輸入表單的資料)
-class AnalyzeRequest(BaseModel):
-    image_base64: str = Field(..., description="圖片的 Base64 字串 (不包含 data:image/... 前綴)")
+class FoodAnalyzeRequest(BaseModel):
+    image_url: str = Field(..., description="圖片的 Supabase 公開網址 URL 字串，它會自動去 bucket 存圖片")
     food_name: str = Field(..., description="食物的名稱，例如：牛肉麵")
     meal_type: str = Field(..., description="餐點類型，例如：早餐、午餐等")
 
@@ -39,11 +39,14 @@ class ChatRequest(BaseModel):
     """
     session_id: str
     content: str
+    image_url: Optional[str] = Field(None, description="圖片的 URL 字串")  # 選填，方便前端傳圖片
+  
 
 # 單則訊息結構 (回傳歷史記錄用)
 class MessageSchema(BaseModel):
     role: str
     content: str
+    image_url: Optional[str] = None  #  新增此欄位，讓前端抓歷史紀錄時能拿到圖片網址
     created_at: Optional[str] = None  # 選填，方便前端顯示時間
 
 

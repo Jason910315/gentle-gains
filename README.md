@@ -64,15 +64,15 @@ GentleGains/
 │   ├── app/
 │   │   ├── data/           # 負責資料庫操作與 Schema 驗證
 │   │   ├── services/       # Agent 負責對話與調用工具
-│   │   ├── tools/         
+│   │   ├── tools/          
 │   │   └── router/         # API Endpoint 端點定義
-│   └── main.py            
+│   └── main.py        
 ├── frontend/               # Next.js 前端應用
-│   ├── app/             
+│   ├── app/              
 │   │   ├── chat/           # AI 聊天室模組
 │   │   ├── workouts/       # 健身紀錄模組
 │   │   └── food/           # 飲食分析模組        
-└── README.md           
+└── README.md            
 ```
 
 ### 🔹 Backend - FastAPI
