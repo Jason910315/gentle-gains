@@ -32,22 +32,41 @@ class AgentService:
             model="gpt-4o"
         )
 
-    async def chat_stream(self, session_id: str, user_query: str):
+    async def chat_stream(self, session_id: str, user_query: str, image_url: str | None = None):
         """
         處理對話的核心流程：存訊息 -> 撈歷史 -> 交給 Runner 處理 -> 存回覆
         """
         try:
             # 存入「當下」的使用者訊息
-            self.chat_repo.create_message(session_id, "user", user_query)
+            self.chat_repo.create_message(session_id, "user", user_query, image_url)
             # 撈取歷史對話記錄，這裡會由最舊的對話開始往後走 (最多50筆)
             chat_history = self.chat_repo.get_recent_messages(session_id, limit=50)
 
+            # 轉換為多模態格式
+            processed_messages = []
+            for msg in chat_history:
+                role = msg["role"]
+                text = msg["content"]
+                image_url = msg.get("image_url")
+
+                # 若這則訊息帶有圖片，則要傳入文字與圖片
+                if image_url:
+                    processed_messages.append({
+                        "role": role,
+                        "content": [
+                            {"type": "input_text", "text": text},
+                            {"type": "input_image", "image_url": image_url},  # LLM 透過此網址看到圖片
+                        ]
+                    })
+                else:
+                    processed_messages.append({"role": role, "content": text})
+                
             print("🏃‍♂️ 交由 Runner 開始執行工具與對話迴圈...")
 
             # 用 stream 方式取得 LLM 的回應
             result = Runner.run_streamed(
                 self.coach_agent,
-                input=chat_history
+                input=processed_messages  # 已經處理好的訊息陣列
             )
 
             full_response_text = ""   # 用來組裝完整的句子存入資料庫
@@ -87,4 +106,4 @@ class AgentService:
         except Exception as e:
             print(f"Agent Error: {e}")
             # 避免 API 錯誤導致整個聊天室崩潰，還是要回傳訊息
-            yield f"data: {json.dumps({'type': 'error', 'content': '抱歉，GentleCoach 大腦暫時短路了，請稍後再試'})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'content': f'抱歉，GentleCoach 大腦暫時短路了，請稍後再試'})}\n\n"

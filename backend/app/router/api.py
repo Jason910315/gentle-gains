@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 from typing import List
-from app.data.schema import AnalyzeRequest, FoodAnalysisResult, ChatRequest, ChatResponse, MessageSchema, WorkoutLogRequest
+from app.data.schema import FoodAnalyzeRequest, FoodAnalysisResult, ChatRequest, ChatResponse, MessageSchema, WorkoutLogRequest
 from app.services.ai_service import OpenAIService    # 負責 AI 圖片分析
 from app.services.agent_service import AgentService  # 負責 Agent 的服務 (對話、調用工具)
 from app.data.repositories import ChatRepository, WorkOutRepository, FoodRepository
@@ -35,9 +35,9 @@ async def add_workout(workout_data: WorkoutLogRequest):
 
 # 進行 AI 分析飲食圖片的 API 端點
 @router.post("/analyze", response_model=FoodAnalysisResult, status_code=status.HTTP_200_OK, summary="AI analyze food image")
-async def analyze_food(request: AnalyzeRequest):   
+async def analyze_food(request: FoodAnalyzeRequest):   
     """
-    API 主流程: 前端傳資料進來後會先驗證是否符合 AnalyzeRequest 的結構，若符合則會自動轉成 AnalyzeRequest 物件
+    API 主流程: 前端傳資料進來後會先驗證是否符合 FoodAnalyzeRequest 的結構，若符合則會自動轉成 FoodAnalyzeRequest 物件
     1. 接收前端圖片
     2. 呼叫 OpenAI 分析 (ai_service)
     3. 將分析結果寫入資料庫 (food_repository)
@@ -45,11 +45,11 @@ async def analyze_food(request: AnalyzeRequest):
     """
     try:
         # result 是一個 FoodAnalysisResult 物件
-        ai_result = OpenAIService.analyze_food_image(request.image_base64, request.food_name, request.meal_type)
+        ai_result = OpenAIService.analyze_food_image(request.image_url, request.food_name, request.meal_type)
 
         save_record = food_repo.save_food_logs(
             food_data=ai_result,
-            image_base64=request.image_base64,
+            image_url=request.image_url,
             food_name=request.food_name,
             meal_type=request.meal_type
         )
@@ -74,7 +74,7 @@ async def chat_with_coach(request: ChatRequest):
     try:
         # 告訴瀏覽器這是 SSE 格式 (text/event-stream)，是串流傳資料進來
         return StreamingResponse(
-            agent_service.chat_stream(request.session_id, request.content),
+            agent_service.chat_stream(request.session_id, request.content, request.image_url),
             media_type="text/event-stream"
         )
         

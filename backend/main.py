@@ -9,7 +9,7 @@ app = FastAPI(title="GentlGains API endpoints")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # 允許前端所有網域發送請求
-    allow_credentials=True,  
+    allow_credentials=False,  
     allow_methods=["*"],  # 允許所有方法 (GET, POST, PUT, DELETE)
     allow_headers=["*"],  # 允許所有標頭
 )
