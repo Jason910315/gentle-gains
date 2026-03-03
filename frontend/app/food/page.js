@@ -35,6 +35,8 @@ export default function FoodPage() {
                 if (data) {
                     setMeals(data);
 
+                    console.log(data);
+
                     // 計算一天內的總營養素，累加所有資料庫內的記錄
                     // reduce() 會將陣列中的所有元素依序傳入並累加
                     const calStats = data.reduce((acc, curr) => {
