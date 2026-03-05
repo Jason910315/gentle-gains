@@ -2,12 +2,19 @@ from typing import Dict, List, Any, Optional, Literal
 from agents import function_tool
 from app.data.repositories import WorkOutRepository, FoodRepository
 from app.data.schema import WorkoutLogRequest
+from app.services.ai_service import OpenAIService
+from app.services.context import current_image_ctx  # 去共用的 context.py 拿 current_image_ctx
 from pydantic import Field
 from datetime import datetime, timezone, timedelta
-import json
+from supabase import create_client, Client
+import json, os, traceback
 
 workout_repo = WorkOutRepository()
 food_repo = FoodRepository()
+
+supabase_url = os.getenv("SUPABASE_URL")
+supabase_key = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(supabase_url, supabase_key)
 
 # --- 輔助 Tools 的函式 ---
 
@@ -28,6 +35,7 @@ def format_utc_to_tw_time(utc_str: str) -> str:
     except Exception as e:
         print(f"[時間轉換錯誤] {e}")
         return utc_str  
+
 
 # --- Define Tools ---
 @function_tool
@@ -103,7 +111,62 @@ def get_recent_workouts(days: int,
         print(f"[系統錯誤]: {e}")
         return "[Tool Output]：查詢健身記錄失敗，請告知使用者系統發生內部錯誤，稍後再試。"
 
+@function_tool
+def log_food_record(meal_type: str, food_name: str) -> str:
+    """
+    當使用者傳送圖片，並「表達」要儲存或記錄這餐飲食時才呼叫，
+    如果只傳圖片且未給指令，且圖片為食物、飲食時，要詢問使用者是否要記錄分析此圖片到資料庫。
+    Args:
+        meal_type: 
+            - 飲食時段，根據使用者給予的餐點時段判斷：必須從以下選項選擇其一：'Breakfast', 'Lunch', 'Dinner', 'Snack', 'MidnightSnack'。
+            - 強制詢問：若使用者「未說明」是哪一餐，禁止猜測，請先詢問使用者。
+        food_name: 食物名稱。若使用者未提供，請根據視覺分析結果自行填入（例如：牛肉麵、雞肉沙拉），但要詢問使用者名稱是否正確。
+    """
+    try:
+        # 從 agent 內定義的 ContextVar 變數中取得圖片網址
+        # 網址一定是 bucket 內存的，因為是從前端傳給後端再呼叫 chat api 的
+        image_url = current_image_ctx.get()
+
+        if not image_url:
+            return "[Tool Output]：未找到圖片網址，請告知試著重新傳送圖片。"
+
+        print(f"⚙️ [Tool 執行] log_food_record: img_url={image_url}")
+
+        path_in_bucket = image_url.split('chat_images/')[1]
+
+        # 從 chat_images 下載檔案內容
+        file_content = supabase.storage.from_('chat_images').download(path_in_bucket)
+
+        # 把剛剛下載的檔案 (圖片) 上傳一份到 food_images 的 bucket 上，就跟 food/add 前端操作一樣
+        supabase.storage.from_('food_images').upload(
+            path=path_in_bucket,
+            file=file_content,
+        )
+
+        new_food_url = supabase.storage.from_('food_images').get_public_url(path_in_bucket)
+
+        # 呼叫 AI 分析圖片
+        ai_result = OpenAIService.analyze_food_image(new_food_url, food_name, meal_type)
+
+        save_record = food_repo.save_food_logs(
+            food_data=ai_result,
+            image_url=new_food_url,
+            food_name=food_name,
+            meal_type=meal_type
+        )
+
+        ai_result_dict = ai_result.model_dump()  # pyｄantic 物件轉成 dict
+
+        if save_record:
+            return f"[Tool Output]: 已成功分析圖片，並寫入資料庫，以下是飲食分析結果:\n食物名稱：{food_name}，熱量：{ai_result_dict['calories']}大卡，蛋白質：{ai_result_dict['protein']}克，脂肪：{ai_result_dict['fat']}克，碳水：{ai_result_dict['carbs']}克，評分：{ai_result_dict['score']}分，建議：{ai_result_dict['coach_comment']}\n"
+        
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        print(f"[系統錯誤]: {error_traceback}")
+        return "[Tool Output]：分析飲食圖片或寫入資料庫失敗，請告知使用者系統發生內部錯誤，稍後再試。"
+        
+
 # 將所有 tools 打包成一個 list，給 AI 讀取
-AGENT_TOOLS = [log_workout, get_recent_workouts]
+AGENT_TOOLS = [log_workout, get_recent_workouts, log_food_record]
         
         
