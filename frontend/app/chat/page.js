@@ -151,20 +151,28 @@ export default function ChatPage() {
         setSelectedFile(null);
         setImagePreview(null);
 
-        // 1. 顯示使用者的提問
-        setMessages((prev) => [...prev, { "role": "user", "content": currentInput }]);
-
-        // 2. 顯示 AI 的回覆 (一開始是預設的，等等會用串流方式接收一段一段訊息)
-        setMessages((prev) => [...prev, { "role": "assistant", "content": "" }]);
-
         setLoadingMessage("Agent 正在思考中...");
 
         try {
             // 1. 先處理有無圖片
             if (currentImage){
-                uploadImageUrl = await uploadChatImage(currentImage);  // 上傳圖片到 supabase，可以透過 uploadImageUrl 存取
+                // 上傳圖片到 supabase，可以透過 uploadImageUrl 存取
+                uploadImageUrl = await uploadChatImage(currentImage);  // await 暫停函式，直到上傳完成才繼續往下執行
             }
 
+            // 2. 顯示使用者的提問，包含文字和圖片
+            setMessages((prev) => [
+                ...prev,
+                {
+                    "role": "user",
+                    "content":currentInput,
+                    "image_url": uploadImageUrl
+                }
+            ])
+
+            setMessages((prev) => [...prev, { "role": "assistant", "content": "" }]);
+            
+            // 3. 這樣就可以拿之前的 image_url 當作參數傳給後端呼叫 chat api
             const response = await fetch('http://127.0.0.1:8000/api/v1/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

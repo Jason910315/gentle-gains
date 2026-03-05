@@ -1,12 +1,11 @@
-import os, json
+import os, json, traceback, asyncio
 from openai import OpenAI
-import asyncio
 from openai.types.responses import ResponseTextDeltaEvent
 from app.data.repositories import ChatRepository
+from app.services.context import current_image_ctx
 from agents import Agent, Runner
 from app.tools import tools
 from typing import Dict, List, Any
-import traceback
 
 class AgentService:
     def __init__(self):
@@ -37,6 +36,9 @@ class AgentService:
         處理對話的核心流程：存訊息 -> 撈歷史 -> 交給 Runner 處理 -> 存回覆
         """
         try:
+            # 將網址注入到此 COntextVar 變數，只要整個非同步還沒結束，contextvar 就不會消失，工具調用時也還在非同步，所以可以直接抓 
+            token = current_image_ctx.set(image_url)
+
             # 存入「當下」的使用者訊息
             self.chat_repo.create_message(session_id, "user", user_query, image_url)
             # 撈取歷史對話記錄，這裡會由最舊的對話開始往後走 (最多50筆)
@@ -107,3 +109,6 @@ class AgentService:
             print(f"Agent Error: {e}")
             # 避免 API 錯誤導致整個聊天室崩潰，還是要回傳訊息
             yield f"data: {json.dumps({'type': 'error', 'content': f'抱歉，GentleCoach 大腦暫時短路了，請稍後再試'})}\n\n"
+        
+        finally:
+            current_image_ctx.reset(token)
