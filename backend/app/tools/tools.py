@@ -4,6 +4,7 @@ from app.data.repositories import WorkOutRepository, FoodRepository
 from app.data.schema import WorkoutLogRequest
 from app.services.ai_service import OpenAIService
 from app.services.context import current_image_ctx  # 去共用的 context.py 拿 current_image_ctx
+from app.services.google_manager import GoogleManager
 from pydantic import Field
 from datetime import datetime, timezone, timedelta
 from supabase import create_client, Client
@@ -64,10 +65,10 @@ def log_workout(exercise_name: str, body_part: Literal["胸部","背部","腿部
     except ValueError as ve:
         # 如果 Pydantic 驗證失敗，會噴出 ValueError
         print(f"[資料驗證錯誤]: {ve}")
-        return "[Tool Output]：寫入失敗，請告訴使用者提供的訓練數據格式不合理。"
+        return "[工具調用失敗]：寫入失敗，請告訴使用者提供的訓練數據格式不合理。"
     except Exception as e:
         print(f"[系統錯誤]: {e}")
-        return "[Tool Output]：寫入資料庫失敗，請告知使用者系統發生內部錯誤，稍後再試。"
+        return "[工具調用失敗]：寫入資料庫失敗，請告知使用者系統發生內部錯誤，稍後再試。"
 
 @function_tool
 def get_recent_workouts(days: int, 
@@ -89,7 +90,7 @@ def get_recent_workouts(days: int,
             exercise_name=exercise_name
         )
         if not db_records:
-            return "[Tool Output]: 資料庫回傳空陣列，請告訴使用者過去 {days} 天內沒有符合條件的健身記錄。"
+            return "[工具調用失敗]: 資料庫回傳空陣列，請告訴使用者過去 {days} 天內沒有符合條件的健身記錄。"
 
         # 資料清洗
         cleaned_records = []
@@ -109,7 +110,7 @@ def get_recent_workouts(days: int,
     
     except Exception as e:
         print(f"[系統錯誤]: {e}")
-        return "[Tool Output]：查詢健身記錄失敗，請告知使用者系統發生內部錯誤，稍後再試。"
+        return "[工具調用失敗]：查詢健身記錄失敗，請告知使用者系統發生內部錯誤，稍後再試。"
 
 @function_tool
 def log_food_record(meal_type: str, food_name: str) -> str:
@@ -128,7 +129,7 @@ def log_food_record(meal_type: str, food_name: str) -> str:
         image_url = current_image_ctx.get()
 
         if not image_url:
-            return "[Tool Output]：未找到圖片網址，請告知試著重新傳送圖片。"
+            return "[工具調用失敗]：未找到圖片網址，請告知試著重新傳送圖片。"
 
         print(f"⚙️ [Tool 執行] log_food_record: img_url={image_url}")
 
@@ -163,10 +164,52 @@ def log_food_record(meal_type: str, food_name: str) -> str:
     except Exception as e:
         error_traceback = traceback.format_exc()
         print(f"[系統錯誤]: {error_traceback}")
-        return "[Tool Output]：分析飲食圖片或寫入資料庫失敗，請告知使用者系統發生內部錯誤，稍後再試。"
+        return "[工具調用失敗]：分析飲食圖片或寫入資料庫失敗，請告知使用者系統發生內部錯誤，稍後再試。"
+
+
+@function_tool
+async def create_calendar_event(summary: str, start_time: str, user_id: str = "tester_01", duration_minutes: int = 60) -> str:
+    """
+    當使用者想要「預約」、「安排」、「約定」任何未來的行程（健身、吃飯、上課等）時，必須呼叫此工具。
+    這是系統唯一的日曆寫入管道。禁止對使用者說你「無法安排」或「請手動設置」。 
+    參數:
+        summary: 行程的簡短標題 (例如：去學校、練背)。
+        start_time: 開始時間。必須轉為 ISO 8601 格式 (YYYY-MM-DDTHH:MM:SS)，注意：如果你不知道今天的日期，請參考系統當前時間或詢問使用者。
+        user_id: 使用者的唯一識別碼。
+        duration_minutes: 持續分鐘數，若使用者未提供，則預設為 60 分鐘。
+    【重要輸出規則】：
+    若此工具回傳包含「http」開頭的連結，你必須『逐字』將該連結呈現給使用者。
+    """
+    try:
+        gm = GoogleManager(user_id)
+        # 建立可以操作"該使用者"行事曆的物件
+        calendar = gm.get_service('calendar', 'v3')
+
+        # 首次操作 google 服務要先授權
+        if not calendar:
+            return f"[工具調用失敗]: 需要使用者進行操作，使用者尚未連結 Google 日曆權限。請告知使用者點擊此連結完成授權，否則無法建立行程**[👉 點擊此處連結進行授權](http://localhost:8000/api/v1/auth/google/login)**"
+        
+        start_dt = datetime.fromisoformat(start_time)
+        end_dt = start_dt + timedelta(minutes=duration_minutes)
+
+        # 包裝成 API 呼叫的 body 格式
+        event = {
+            'summary': summary,
+            'start': {'dateTime': start_dt.isoformat(), 'timeZone': 'Asia/Taipei'},
+            'end': {'dateTime': end_dt.isoformat(), 'timeZone': 'Asia/Taipei'},
+        }
+
+        # 新增行程 (primary 代表要操作使用者的主要日曆)
+        result = calendar.events().insert(calendarId='primary', body=event).execute()
+        return f"[Tool Output]✅ 行程已建立！名稱：{summary}，連結：[點我查看]({result.get('htmlLink')})"
+
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        print(f"[系統錯誤]: {error_traceback}")
+        return f"[工具調用失敗]：建立行程失敗，請告知使用者系統發生內部錯誤，稍後再試。"
         
 
 # 將所有 tools 打包成一個 list，給 AI 讀取
-AGENT_TOOLS = [log_workout, get_recent_workouts, log_food_record]
+AGENT_TOOLS = [log_workout, get_recent_workouts, log_food_record, create_calendar_event]
         
         

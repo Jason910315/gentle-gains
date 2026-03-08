@@ -1,9 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware # 導入 Session 中間件
 from app.router import api
+from app.router import google_auth
 import traceback
 
 app = FastAPI(title="GentlGains API endpoints")
+
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key="gentle_gains_secret_key_jason" # 隨便設定一個字串
+)
 
 # 解決前後端網域不同問題
 app.add_middleware(
@@ -14,8 +21,10 @@ app.add_middleware(
     allow_headers=["*"],  # 允許所有標頭
 )
 
+
 # 將 api 掛載進來
 app.include_router(api.router)
+app.include_router(google_auth.router)
 
 if __name__ == "__main__":
     import uvicorn
