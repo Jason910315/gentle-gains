@@ -281,7 +281,7 @@ export default function ChatPage() {
 
                         {/* 訊息框 */}
                         <div className={`
-                            max-w-[80%] text-sm leading-relaxed whitespace-pre-wrap break-words
+                            max-w-[80%] text-sm leading-relaxed break-words
                             ${msg.role === 'user'
                                 ? 'px-4 py-2 rounded-2xl bg-gray-200 rounded-tr-none shadow-sm'
                                 : 'text-gray-700 py-2'}
