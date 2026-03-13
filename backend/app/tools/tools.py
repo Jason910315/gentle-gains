@@ -207,6 +207,8 @@ async def create_calendar_event(summary: str, start_time: str, user_id: str = "t
         error_traceback = traceback.format_exc()
         print(f"[系統錯誤]: {error_traceback}")
         return f"[工具調用失敗]：建立行程失敗，請告知使用者系統發生內部錯誤，稍後再試。"
+
+
         
 
 # 將所有 tools 打包成一個 list，給 AI 讀取

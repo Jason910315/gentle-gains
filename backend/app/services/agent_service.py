@@ -34,11 +34,18 @@ class AgentService:
             你的職責與行為準則：
             1. 回答使用者關於健身、飲食與健康的問題。
             2. 語氣要正向、鼓勵，但也要依據科學事實。
+
+            ## 專業回覆框架 (每則回覆務必遵循此結構)
+            1. **溫暖開場**：用正向、有能量的語氣肯定使用者的意圖。
+            2. **科學知識科普 (重點補強)**：
+            - 針對使用者的動作或需求，給予 1-2 句生理學或營養學的解釋。
+            - 例如：若使用者要練胸，提醒他注意離心收縮的控制；若要紀錄飲食，提到蛋白質對合成的幫助。
+            3. **教練的叮嚀**：結尾附帶一句關於水分補給、睡眠或心態的溫馨小提醒。
                     
             ## 工具使用守則
             1. 你具備多種系統工具），請主動分析使用者的意圖，呼叫最適合的工具來完成任務。
             2. 呼叫任何工具前，若發現使用者提供的資訊「不足以填滿工具的必填參數」，絕對不要自行捏造或瞎猜數據，務必先友善地向使用者詢問缺失的資訊。
-            3. 工具執行成功後，請基於工具回傳的結果，給予使用者簡短、自然的確認與鼓勵。
+            3. 工具執行成功後，請基於工具回傳的結果，給予使用者自然的確認與鼓勵，以及可以針對使用者當下的情況，給予專業的建議。
             """,
             tools=tools.AGENT_TOOLS,
             model="gpt-4o"
@@ -88,7 +95,7 @@ class AgentService:
                     if event.item.type == "tool_call_item":
                         tool_name = event.item.raw_item.name
                         tool_args = event.item.raw_item.arguments
-                        content = f'[Tool Calling] {tool_name}，參數: {tool_args}\n'
+                        content = f'[Tool Use] 正在呼叫 {tool_name}，參數: {tool_args}\n\n'
 
                         full_response_text += content  # 這樣讓工具調用過程也存入資料庫
                         # 通知前端：正在執行工具 (轉成 JSON 方便前端解析，開頭與結尾加上 data: /n/n 是 SSE 的通訊格式)
@@ -97,13 +104,13 @@ class AgentService:
                         tool_output_string = event.item.output   # tool function 回傳的結果
                         print(f"📦 [工具回傳]: {tool_output_string}")
                         if tool_output_string.startswith("[工具調用失敗]"):
-                            full_response_text += f"[Tool Calling] 工具執行失敗，請稍後在試\n"
+                            full_response_text += f"[Tool Use] 工具執行失敗，請稍後在試\n\n"
                             # 通知前端：工具執行失敗
-                            yield f"data: {json.dumps({'type': 'tool_output', 'content': f"[Tool Calling] 工具執行失敗，請稍後在試\n"}, ensure_ascii=False)}\n\n"
+                            yield f"data: {json.dumps({'type': 'tool_output', 'content': f"[Tool Use] 工具執行失敗，請稍後在試\n"}, ensure_ascii=False)}\n\n"
                         else:
-                            full_response_text += f"[Tool Calling] 工具執行完畢\n"
+                            full_response_text += f"[Tool Use] 工具執行完畢\n\n"
                             # 通知前端：工具執行完畢
-                            yield f"data: {json.dumps({'type': 'tool_output', 'content': f"[Tool Calling] 工具執行完畢\n"}, ensure_ascii=False)}\n\n"             
+                            yield f"data: {json.dumps({'type': 'tool_output', 'content': f"[Tool Use] 工具執行完畢\n"}, ensure_ascii=False)}\n\n"             
                         
                 # 2. 捕捉到 LLM 的「純文字」輸出，讓前端能以「串流」的方式顯示回覆
                 elif event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
