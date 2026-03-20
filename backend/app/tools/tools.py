@@ -1,14 +1,17 @@
-from typing import Dict, List, Any, Optional, Literal
+from typing import Counter, Dict, List, Any, Optional, Literal
 from agents import function_tool
 from app.data.repositories import WorkOutRepository, FoodRepository
 from app.data.schema import WorkoutLogRequest
 from app.services.ai_service import OpenAIService
 from app.services.context import current_image_ctx  # 去共用的 context.py 拿 current_image_ctx
 from app.services.google_manager import GoogleManager
-from pydantic import Field
 from datetime import datetime, timezone, timedelta
 from supabase import create_client, Client
 import json, os, traceback
+from tavily import TavilyClient
+
+# 可以聯網搜尋的工具
+tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
 workout_repo = WorkOutRepository()
 food_repo = FoodRepository()
@@ -71,42 +74,98 @@ def log_workout(exercise_name: str, body_part: Literal["胸部","背部","腿部
         return "[工具調用失敗]：寫入資料庫失敗，請告知使用者系統發生內部錯誤，稍後再試。"
 
 @function_tool
-def get_recent_workouts(days: int, 
-                        body_part: Optional[Literal["胸部", "背部", "腿部", "肩膀", "手臂", "核心"]] = None,  # Optional 可選填，若不是六種之一，可以是 None
-                        exercise_name: Optional[str] = None) -> str:
+def get_workout_analytics(days: int, 
+                        body_parts: Optional[List[Literal["胸部", "背部", "腿部", "肩膀", "手臂", "核心"]]] = None,  # Optional 可選填，不限定只能一種
+                        ) -> str: # 回傳的字串，給 LLM 讀的
     """
-    查詢使用者過往的健身記錄，可以根據天數、部位、或特定動作進行精細查詢。
+    查詢使用者過往的健身記錄，可以根據天數、部位、進行精細查詢，查詢完畢後，會自動分析使用者的訓練狀況，並給出建議。
     參數：
         days: 查詢的天數，若使用者並未給予天數參數，則預設為 7 天，若使用者問「最近」，代入 7，若問「這個月」，帶入 30。
-        body_part: (選填) 限定查詢的訓練部位，若未指定，則忽略 (Null)，必須自動將使用者口語化的部位（如：練胸、胸肌）歸類到選項中。
-        exercise_name: (選填) 限定查詢的特定訓練動作，請保留使用者輸入的中文動作名稱。
+        body_part: (選填) 欲查詢的部位，可多選，若未指定，則代表查詢全部部位，必須自動將使用者口語化的部位（如：練胸、胸肌）歸類到選項中。
     """
-    print(f"⚙️ [Tool 執行] get_recent_workouts: 查詢最近 {days} 天，部位={body_part}，動作={exercise_name}")
+    print(f"⚙️ [Tool 執行] get_workout_analytics: 查詢最近 {days} 天，部位={body_parts}")
     try:
         # 查詢特定條件的健身記錄，目前還是 UTC
         db_records = workout_repo.get_filtered_workouts(
             days=days,
-            body_part=body_part,
-            exercise_name=exercise_name
+            body_parts=body_parts
         )
         if not db_records:
             return "[工具調用失敗]: 資料庫回傳空陣列，請告訴使用者過去 {days} 天內沒有符合條件的健身記錄。"
 
-        # 資料清洗
-        cleaned_records = []
-        # db_records 是一個 list of dict
-        for row in db_records:
-            cleaned_row = {
-                "時間": format_utc_to_tw_time(row.get("created_at")),
-                "動作": row.get("exercise_name"),
-                "部位": row.get("body_part"),
-                "重量": f"{row.get('weight')} kg",
-                "組數": row.get("sets"),
-                "次數": row.get("reps")
-            }
-            cleaned_records.append(cleaned_row)
+        unique_days = set()  # 有可能同一天有多筆訓練紀錄，我們會想知道範圍內哪幾天有訓練的
+        part_counter = Counter()  # 計算各部位的訓練次數
+
+        exercise_data = {}  # ex: {"深蹲": {"weights": [60, 62], "reps": [10, 8], "volumes": [600, 496]}}
+
+        workout_raw_list = []
         
-        return f"[Tool Output]: 查詢成功，以下是真實訓練資料 (以轉換為台灣時間): \n{json.dumps(cleaned_records, ensure_ascii=False)}"
+        for row in db_records:
+            dt = row["created_at"]
+            unique_days.add(dt.split('T')[0])  # 同一天的訓練只記一次   
+            part = row["body_part"]
+            part_counter[part] += 1  # 記該部位練了幾次
+            name = row["exercise_name"]
+            w ,s, r = row["weight"], row["sets"], row["reps"]
+            volume = w * s * r  
+
+            # 這是之後要給 LLM 看的返回 (關於所有查詢到的記錄)
+            workout_raw_list.append({
+                "日期": format_utc_to_tw_time(dt),
+                "動作": name, "部位": part, "數據": f"{w}kg x {s}組 x {r}下"
+            })
+
+            # 要將同個動作的的不同時間訓練串在一起，這樣就可以知道多次訓練的進步幅度
+            if name not in exercise_data:
+                exercise_data[name] = {"weights": [], "sets": [], "reps": [], "volume": []}
+            exercise_data[name]["weights"].append(w)
+            exercise_data[name]["sets"].append(s)
+            exercise_data[name]["reps"].append(r)
+            exercise_data[name]["volume"].append(volume)
+
+        progress_highlights = []  # 記錄動作的進步狀況，給 LLM 看的
+
+        # 一個動作一個動作判斷
+        for name, metrics in exercise_data.items():
+            if len(metrics["weights"]) < 2:  # 至少要有兩次訓練才能算進步
+                continue
+
+            # 如何判斷有無進步: 將使用者給的時間範圍內的記錄，取前半段和後半段，比較
+            mid = len(metrics["weights"]) // 2   # (取整，5 // 2 = 2)
+
+            # 輔助: 判斷 key 這個值的進步幅度
+            def get_imp(key):
+                past = sum(metrics[key][:mid]) / mid  # 前半段的平均
+                recent = sum(metrics[key][mid:]) / (len(metrics[key]) - mid)  # 後半段的平均
+                return recent - past
+
+            imp_w = get_imp("weights")
+            imp_s = get_imp("sets")
+            imp_r = get_imp("reps")
+            imp_v = get_imp("volume")
+
+            # 開始判斷所有數據有無進步
+            if imp_w > 0:
+                progress_highlights.append({"動作": name, "類型": "重量提升", "進步": f"+{imp_w:.1f}kg"})
+            if imp_s > 0:
+                progress_highlights.append({"動作": name, "類型": "組數提升", "進步": f"+{imp_s:.1f}組"})
+            if imp_r > 0.5:  # 次數提升至少要 0.5 下才能算進步
+                progress_highlights.append({"動作": name, "類型": "次數提升", "進步": f"+{imp_r:.1f}下"})
+            if imp_v > 50:
+                progress_highlights.append({"動作": name, "類型": "總量突破", "進步": f"+{imp_v:.1f}kg"})
+
+       # 結構化最後的結果，要返回給 LLM 看的
+        analytics = {
+            "workout_raw_data": workout_raw_list,
+            "summary_stats": {
+                "total_days": len(unique_days),  # 這是使用者給的特定 days 內的訓練天數
+                "weekly_frequency": f"{len(unique_days) / (days/7):.1f}次",
+                "part_distribution": {k: f"{(v/len(db_records))*100:.1f}%" for k, v in part_counter.items()},
+                "progress_highlights": progress_highlights
+            }
+        }
+        
+        return f"[Tool Output]: {json.dumps(analytics, ensure_ascii=False)}"
     
     except Exception as e:
         print(f"[系統錯誤]: {e}")
@@ -189,6 +248,7 @@ async def create_calendar_event(summary: str, start_time: str, user_id: str = "t
         if not calendar:
             return f"[工具調用失敗]: 需要使用者進行操作，使用者尚未連結 Google 日曆權限。請告知使用者點擊此連結完成授權，否則無法建立行程**[👉 點擊此處連結進行授權](http://localhost:8000/api/v1/auth/google/login)**"
         
+        print(f"⚙️ [Tool 執行] create_calendar_event: 正在建立行程 '{summary}'")
         start_dt = datetime.fromisoformat(start_time)
         end_dt = start_dt + timedelta(minutes=duration_minutes)
 
@@ -208,10 +268,64 @@ async def create_calendar_event(summary: str, start_time: str, user_id: str = "t
         print(f"[系統錯誤]: {error_traceback}")
         return f"[工具調用失敗]：建立行程失敗，請告知使用者系統發生內部錯誤，稍後再試。"
 
+@function_tool
+def web_search(query: str) -> str:
+    """
+    當使用者詢問關於健身科學、營養研究、健身動作細節、補給品等等任何關於健身營養的問題，或是任何 AI 知識庫可能過時的即時資訊時，
+    呼叫此工具進行聯網搜尋。
+    參數:
+        query: 搜尋關鍵字，請將使用者的問題轉化為適合搜尋引擎的關鍵字(例如:「肌酸服用時間建議」)。
+    """
+    if not tavily_client:
+        return f"[工具調用失敗]: 系統尚未配置 Tavily API 金鑰，無法進行聯網搜尋。"
+    
+    try:
+        print(f"🌐 [Tool 執行] web search: 正在搜尋 '{query}'")
 
+        response = tavily_client.search(
+            query=query,
+            search_depth="advanced",   # 會掃描更多高質量的網站
+            max_results=3,             
+            include_answer=True   # 根據搜尋到的多個網頁內容，讓 Tavily 先幫忙總結一個簡答
+        )
+
+        # 整理搜尋結果給 LLM 看，這個結果可能有多個網站的資訊
+        search_results = []
+
+        # 若 Tavily 有提供答案則優先放入
+        if response.get("answer"):
+            search_results.append(f"【核心答案】: {response['answer']}\n")
         
+        # 遍歷多個網站的搜尋結果，使用更直觀的標籤
+        for i, result in enumerate(response.get("results", []), 1):
+            search_results.append(
+                f"--- 來源 {i} ---\n"
+                f"網站標題: {result['title']}\n"
+                f"網址連結: {result['url']}\n"
+                f"內容內容: {result['content']}\n"
+            )
+            
+        final_output = "\n".join(search_results)
+
+        if not final_output:
+            return "[工具調用失敗]: 搜尋不到相關結果，請試著更換提問方式。"
+        
+        # 強制 AI 如何「引用」的關鍵 Meta-prompt
+        meta_prompt = (
+            "\n\n[指令: 請根據上述資訊回答，並嚴格遵守以下格式規範：\n"
+            "1. 你的回答正文應保持專業且溫暖，可以不用在正文中嵌入連結。\n"
+            "2. **在回覆內容的最後**，必須新增一個標題為『### 參考來源』的區塊。\n"
+            "3. 在該區塊中，請以列表形式顯示你參考的所有網站真實網址，可以讓使用者點擊跳轉到該網站。\n"
+            "4. 範例：『- 肌酸補充指南：[https://example.com/creatine-guide](https://example.com/creatine-guide)』。]\n"
+        )
+        return f"[Tool Output]: \n\n{final_output}{meta_prompt}"
+    
+    except Exception as e:
+        print(f"[聯網搜尋錯誤]: {e}")
+        return f"[工具調用失敗]: 聯網搜尋時發生錯誤，請稍後再試。"
+
 
 # 將所有 tools 打包成一個 list，給 AI 讀取
-AGENT_TOOLS = [log_workout, get_recent_workouts, log_food_record, create_calendar_event]
+AGENT_TOOLS = [log_workout, get_workout_analytics, log_food_record, create_calendar_event, web_search]
         
         
