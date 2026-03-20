@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import remarkBreaks from 'remark-breaks';
-import { Send, User, Bot, Loader2, Trash2, Command, Image as ImageIcon, X} from 'lucide-react';
+import { Send, User, Bot, Loader2, Trash2, Command, Image as ImageIcon, X, Wrench, Dumbbell, Utensils, Globe, Calendar} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';  // 將 md 轉成人類的語言
 import remarkGfm from 'remark-gfm'; // 支援表格與程式碼區塊
 import { supabase } from '@/lib/supabaseClient';
@@ -17,6 +17,8 @@ export default function ChatPage() {
     // messages 代表所有歷史對話訊息 (包含使用者和 AI 的，所以當其中一方有傳訊息，就要更新狀態，重新渲染前端)
     const [messages, setMessages] = useState([])
     const [showCommandMenu, setShowCommandMenu] = useState(false);  // 是否要顯示快捷鍵視窗
+    const [showToolMenu, setShowToolMenu] = useState(false);        // 是否顯示工具選單
+    
     const COMMANDS = [
         {
             id: 'clear',
@@ -28,6 +30,15 @@ export default function ChatPage() {
                 setInput("");
             }
         }
+    ];
+
+    // 這是 agent 所能調用的工具列表，在後端 tools.py 中定義
+    const TOOLS = [
+        { id: 'log_workout', label: 'log_workout' },
+        { id: 'get_workout_analytics', label: 'get_workout_analytics' },
+        { id: 'log_food_record', label: 'log_food_record' },
+        { id: 'create_calendar_event', label: 'create_calendar_event' },
+        { id: 'web_search', label: 'web_search' },
     ];
 
     const messageEndRef = useRef(null);
@@ -323,7 +334,7 @@ export default function ChatPage() {
                                 alt="Preview"
                                 className="w-25 h-25 object-cover rounded-lg border"
                             />
-                            {/* 刪除圖片按鈕 */}
+                            {/* 刪除圖片按鈕 (會在圖片上) */}
                             <button
                                 onClick={clearSelectedFile}
                                 className="absolute -top-1.5 -right-1.5 bg-gray-400/80 text-white rounded-full p-0.5 hover:bg-gray-600 transition-colors"
@@ -359,8 +370,43 @@ export default function ChatPage() {
                     </div>
                 )}
 
-                {/* 3. 輸入框區 */}
+                {/* 3. 工具選單 (showToolMenu 狀態為 true 時觸發) */}
+                {showToolMenu && (
+                    <div className="absolute bottom-full left-4 mb-2 w-56 bg-white border rounded-xl shadow-xl overflow-hidden z-20 animate-in slide-in-from-bottom-2 fade-in duration-200">
+                        <div className="bg-orange-50 px-3 py-2 border-b text-[10px] font-bold text-orange-600 flex items-center gap-2">
+                            <Wrench size={10} />
+                            AGENTIC TOOLS
+                        </div>
+                        <div className="p-1">
+                            {TOOLS.map((tool) => (
+                                <div
+                                    key={tool.id}
+                                    className="px-3 py-2 text-xs font-mono text-gray-600 hover:bg-gray-50 hover:text-orange-600 transition-colors cursor-default"
+                                >
+                                    {tool.label}()
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* 4. 輸入框區 */}
                 <div className="max-w-3xl mx-auto flex gap-2">
+                    {/* 工具選單按鈕 */}
+                    <button
+                        onClick={() => {
+                            setShowToolMenu(!showToolMenu);  // 按一次按鈕，就會顯示或隱藏工具選單，看當時的狀態
+                            setShowCommandMenu(false);  // 按了工具選單，就不能在使用快捷鍵功能
+                        }}
+                        className={`p-3 rounded-xl transition-all ${
+                            showToolMenu 
+                            ? 'bg-orange-500 text-white shadow-lg scale-105' 
+                            : 'text-gray-400 hover:bg-gray-100 hover:text-orange-500'
+                        }`}
+                    >
+                        <Wrench size={20} />
+                    </button>
+
                     {/* 圖片輸入區 */}
                     <input
                         type="file"
@@ -371,8 +417,11 @@ export default function ChatPage() {
                     />
 
                     <button
-                        onClick={() => fileInputRef.current.click()}  // 點這個按鈕就觸發 fileInputRef 點擊
-                        disabled={loadingMessage}
+                        onClick={() => {
+                            fileInputRef.current.click();
+                            setShowToolMenu(false);   // 點擊其他地方時關閉工具選單
+                        }}
+                        disabled={loadingMessage}  // 若 LLM 還在思考或接收到空字串，則就算點圖片上傳按鈕也不會動作
                         className={`p-3 rounded-xl transition-all ${
                             selectedFile 
                             ? 'bg-orange-100 text-orange-600' 
