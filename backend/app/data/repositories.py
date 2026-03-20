@@ -3,6 +3,7 @@ from supabase import create_client, Client
 from app.data.schema import FoodAnalysisResult, WorkoutLogRequest
 from dotenv import load_dotenv
 from datetime import datetime, timezone, timedelta
+from typing import Optional, List
 
 load_dotenv()
 
@@ -96,7 +97,7 @@ class WorkOutRepository:
             return None
 
     # 根據使用者的查詢條件，從資料庫中取出最近的健身記錄
-    def get_filtered_workouts(self, days: int, body_part: str | None = None, exercise_name: str | None = None):
+    def get_filtered_workouts(self, days: int, body_parts: Optional[List[str]] = None):
         # 取得絕對的現在時間 (UTC)
         now_utc = datetime.now(timezone.utc)
         target_date = now_utc - timedelta(days=days)  # 例如查過去 7 天，日期就是 7 天前那天
@@ -107,12 +108,10 @@ class WorkOutRepository:
             # greater than or equal to
             query = self.supabase.table("workout_logs").select("*").gte("created_at", target_date_str)
 
-            # 根據使用者有給的特定查詢條件，再次過濾結果
-            if body_part:
-                query = query.eq("body_part", body_part)
-            if exercise_name:
-                # 使用者在對話輸入的可能不是精準的名稱，要模糊查詢
-                query = query.ilike("exercise_name", f"%{exercise_name}%")
+            # 檢查 body_parts 是否有給，沒有給代表是查詢全部
+            if body_parts and len(body_parts) > 0:
+                # 使用者可以查詢多個部位，要用 in_ 來查詢
+                query = query.in_("body_part", body_parts)
 
             response = query.order("created_at", desc=True).execute()
 
