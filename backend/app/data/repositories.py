@@ -121,6 +121,56 @@ class WorkOutRepository:
             print(f"查詢最近 {days} 天的健身記錄失敗: {e}")
             return []
 
+    def get_workout_heatmap_month(self):
+        """取得當前月份每天的訓練次數"""
+        tw_tz = timezone(timedelta(hours=8))
+        now_tw = datetime.now(tw_tz)
+        # 台灣時間當年當月 1 號 00:00:00
+        start_of_month = datetime(now_tw.year, now_tw.month, 1, tzinfo=tw_tz)
+        # 將台灣時間校正回 UTC 給 Supabase 查詢，並轉換回字串格式
+        start_of_month_utc = start_of_month.astimezone(timezone.utc).isoformat()
+        try:
+            # 查詢從當月 1 號以來的資料
+            response = self.supabase.table("workout_logs").select("created_at").gte("created_at", start_of_month_utc).execute()
+            data = response.data
+            
+            heatmap = {}
+            # 統計一個月內訓練次數
+            for row in data:
+                date_str = row["created_at"].split("T")[0]
+                heatmap[date_str] = heatmap.get(date_str, 0) + 1  # 只要那個日期有一筆數據就加 1可以算出那天練了多少
+            
+            # 轉換為前端需要的格式，包含精確的 count
+            result = [{"date": k, "count": v} for k, v in heatmap.items()]
+            return result
+        except Exception as e:
+            print(f"Heatmap data fetch error: {e}")
+            return []
+
+    def get_body_part_stats_month(self):
+        """取得當前月份各部位的訓練分佈"""
+        tw_tz = timezone(timedelta(hours=8))
+        now_tw = datetime.now(tw_tz)
+        start_of_month = datetime(now_tw.year, now_tw.month, 1, tzinfo=tw_tz)
+        start_of_month_utc = start_of_month.astimezone(timezone.utc).isoformat()
+
+        try:
+            # 查詢從當月 1 號以來的資料
+            response = self.supabase.table("workout_logs").select("body_part").gte("created_at", start_of_month_utc).execute()
+            data = response.data
+            stats = {}
+            # 計算這個月每天每個部位訓練的次數
+            for row in data:
+                part = row["body_part"]
+                stats[part] = stats.get(part, 0) + 1  # body_part 不存在就建立
+            
+            all_parts = ["胸部", "背部", "腿部", "肩膀", "手臂", "核心"]
+            result = [{"body_part": part, "count": stats.get(part, 0)} for part in all_parts]
+            return result
+        except Exception as e:
+            print(f"Body part stats fetch error: {e}")
+            return []
+
 # 負責存取 food_logs database
 class FoodRepository:
     def __init__(self):
@@ -129,6 +179,30 @@ class FoodRepository:
         if not url or not key:
             raise ValueError("Supabase URL or Key not found in env")
         self.supabase: Client = create_client(url, key)  # 建立 Supabase 連線
+
+    def get_today_summary(self):
+        """取得今日攝取的營養總和 (以台北時間為準)"""
+        # 台北時間是 UTC+8
+        tw_tz = timezone(timedelta(hours=8))
+        now_tw = datetime.now(tw_tz)
+        # 今日凌晨 00:00:00
+        start_of_day = datetime(now_tw.year, now_tw.month, now_tw.day, tzinfo=tw_tz)
+        # 轉回 UTC 給 Supabase 查詢
+        start_of_day_utc = start_of_day.astimezone(timezone.utc).isoformat()
+
+        try:
+            response = self.supabase.table("food_logs").select("calories, protein, fat, carbs").gte("created_at", start_of_day_utc).execute()
+            data = response.data
+            summary = {"calories": 0, "protein": 0, "fat": 0, "carbs": 0}
+            for row in data:
+                summary["calories"] += row["calories"]
+                summary["protein"] += row["protein"]
+                summary["fat"] += row["fat"]
+                summary["carbs"] += row["carbs"]
+            return summary  # 返回字典回去
+        except Exception as e:
+            print(f"Today summary fetch error: {e}")
+            return {"calories": 0, "protein": 0, "fat": 0, "carbs": 0}
 
     def save_food_logs(self, food_data: FoodAnalysisResult, image_url: str, food_name: str, meal_type: str) -> dict:
         """

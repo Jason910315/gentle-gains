@@ -55,8 +55,32 @@ class ChatResponse(BaseModel):
     role: str
     content: str
 
+# --- Dashboard 需要的儀表板資料 ---
+# 今日已經攝取的營養素資料
+class TodayNutrition(BaseModel):
+    calories: int
+    protein: int
+    fat: int
+    carbs: int
+    target_calories: int = 2000 # 預設目標
+    target_protein: int = 60   # 預設目標
 
-# --- Workout Add 頁面的資料 ---
+# 記錄一個月以來訓練的頻率
+class WorkoutHeatmapEntry(BaseModel):
+    date: str
+    count: int
 
-# 結尾 (移除 WorkoutLogRequest)
+# 記錄一個月以來訓練的部位分佈
+class BodyPartStat(BaseModel):
+    body_part: str
+    count: int
+
+# 把上面打包一次回傳給前端的 Dashboard 儀表板資料
+class DashboardSummary(BaseModel):
+    nutrition: TodayNutrition
+    heatmap: List[WorkoutHeatmapEntry]
+    distribution: List[BodyPartStat]
+    insight: str
+
+
 

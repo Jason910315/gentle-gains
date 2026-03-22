@@ -1,11 +1,13 @@
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 from typing import List
-from app.data.schema import FoodAnalyzeRequest, FoodAnalysisResult, ChatRequest, ChatResponse, MessageSchema, WorkoutLogRequest
+from app.data.schema import FoodAnalyzeRequest, FoodAnalysisResult, ChatRequest, MessageSchema, WorkoutLogRequest, DashboardSummary, TodayNutrition
 from app.services.ai_service import OpenAIService    # 負責 AI 圖片分析
 from app.services.agent_service import AgentService  # 負責 Agent 的服務 (對話、調用工具)
 from app.data.repositories import ChatRepository, WorkOutRepository, FoodRepository
+from app.tools.tools import fetch_workout_analytics
 import traceback
+import json
 
 """
 這裡建立 API 的路由，並呼叫 services 的方法
@@ -88,6 +90,46 @@ async def chat_with_coach(request: ChatRequest):
 async def get_chat_history(session_id: str, limit: int):
     history = chat_repo.get_recent_messages(session_id, limit=limit)
     return history
+
+# 取得 dashboard 頁面所需的全部資料，在函式內是一一取得並打包成 DashboardSummary 物件回傳給前端
+@router.get("/dashboard/summary", response_model=DashboardSummary, summary="Get dashboard summary data")
+async def get_dashboard_summary():
+    try:
+        # Today's nutrition: {calories: ..., protein: ..., ...}
+        nutrition_data = food_repo.get_today_summary()
+        # 把字典裡的 key 變成「參數名稱」，把 value 變成「參數值」，並傳入 TodayNutrition 物件，讓它符合 pydantic
+        today_nutrition = TodayNutrition(**nutrition_data)
+
+        # Workout heatmap (Current Month): [{"date": k, "count": v}, ...]
+        heatmap = workout_repo.get_workout_heatmap_month()
+
+        # Body part distribution (Current Month): [{"body_part": k, "count": v}, ...]
+        distribution = workout_repo.get_body_part_stats_month()
+
+        # Coach insight
+        analytics_str = fetch_workout_analytics(days=30)  # 改為呼叫邏輯函數
+        # 這裡 analytics_str 格式是 "[Tool Output]: {...json...}"
+        try:
+            analytics_json = json.loads(analytics_str.replace("[Tool Output]: ", ""))
+            # 我們只需要 progress_highlights 欄位
+            highlights = analytics_json.get("summary_stats", {}).get("progress_highlights", [])
+            if highlights:
+                insight = f"你在過去 30 天有顯著進步！{highlights[0]['動作']}的{highlights[0]['類型']}提升了 {highlights[0]['進步']}。"
+            else:
+                insight = "繼續保持訓練！穩定的頻率是進步的關鍵，目前的訓練分佈還算平均，建議下週可以多挑戰一點重量。"
+        except:
+            insight = "保持運動與飲食紀錄，我將為你提供更精準的教練建議！"
+
+        # 把上面所有資訊打包
+        return DashboardSummary(
+            nutrition=today_nutrition,
+            heatmap=heatmap,
+            distribution=distribution,
+            insight=insight
+        )
+    except Exception as e:
+        print(f"Dashboard Summary Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/")
 def health_check():
