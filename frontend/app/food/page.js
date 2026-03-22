@@ -39,10 +39,11 @@ export default function FoodPage() {
                     console.log(data);
 
                     // 計算「今天」的總營養素
-                    const today = new Date().toISOString().split('T')[0];
+                    const todayLocal = new Date().toLocaleDateString();
+                    // 資料庫裡的時間也要先轉為當地時間
                     const calStats = data
-                        .filter(meal => meal.created_at.startsWith(today))  // 只挑出今天內的餐點
-                        .reduce((acc, curr) => {                            // reduce() 會將陣列中的所有元素依序傳入並累加
+                        .filter(meal => new Date(meal.created_at).toLocaleDateString() === todayLocal)
+                        .reduce((acc, curr) => {
                             return {
                                 calories: acc.calories + (curr.calories || 0),
                                 protein: acc.protein + (curr.protein || 0),
@@ -89,6 +90,9 @@ export default function FoodPage() {
 
             {/* 主畫面 main */}
             <main className="max-w-5xl ma-auto space-y-8">
+                <div>
+                    <p className="text-slate-500 text-sm">你今天吃了多少呢</p>
+                </div>
                 {/* 1. 營養素儀表板 (Dashboard) 每個卡片使用下方定義的 StatCard */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <StatCard

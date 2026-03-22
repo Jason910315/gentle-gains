@@ -26,7 +26,7 @@ export default function Sidebar() {
             {/* 導航選單 */}
             <nav className="flex-1 px-4 space-y-2 mt-4">
                 {/* active會決定導航按鈕的顏色是否呈現橘色，代表目前頁面 */}
-                <NavLink href="/" icon={<LayoutDashboard size={20} />} label="總覽儀表板" active={pathname === "/"} />
+                <NavLink href="/dashboard" icon={<LayoutDashboard size={20} />} label="總覽儀表板" active={pathname === "/dashboard"} />
                 <NavLink href="/workouts" icon={<Dumbbell size={20} />} label="訓練日誌" active={pathname.startsWith("/workouts")} />
                 <NavLink href="/food" icon={<Utensils size={20} />} label="飲食追蹤" active={pathname.startsWith("/food")} />
                 <NavLink href="/chat" icon={<MessageSquare size={20} />} label="AI 教練" active={pathname.startsWith("/chat")} />

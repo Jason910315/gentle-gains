@@ -83,9 +83,13 @@ def get_workout_analytics(days: int,
         days: 查詢的天數，若使用者並未給予天數參數，則預設為 7 天，若使用者問「最近」，代入 7，若問「這個月」，帶入 30。
         body_part: (選填) 欲查詢的部位，可多選，若未指定，則代表查詢全部部位，必須自動將使用者口語化的部位（如：練胸、胸肌）歸類到選項中。
     """
-    print(f"⚙️ [Tool 執行] get_workout_analytics: 查詢最近 {days} 天，部位={body_parts}")
+    return fetch_workout_analytics(days, body_parts)
+
+def fetch_workout_analytics(days: int, body_parts: Optional[List[str]] = None) -> str:
+    """這是純 Python 邏輯函數，供工具與 API 共用"""
+    print(f"⚙️ [數據分析] fetch_workout_analytics: 查詢最近 {days} 天，部位={body_parts}")
     try:
-        # 查詢特定條件的健身記錄，目前還是 UTC
+        # 查詢特定條件的健身記錄
         db_records = workout_repo.get_filtered_workouts(
             days=days,
             body_parts=body_parts
