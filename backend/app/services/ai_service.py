@@ -49,7 +49,7 @@ class OpenAIService:
         try:
             # Strutured output 可以確保回傳格式一致
             completion = client.beta.chat.completions.parse(
-                model="o3",  # 支援 Strutured Output 的最新模型
+                model="gpt-4o",  # 更換為穩定支援視覺與 Structured Output 的 gpt-4o
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {

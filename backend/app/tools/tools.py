@@ -9,6 +9,8 @@ from datetime import datetime, timezone, timedelta
 from supabase import create_client, Client
 import json, os, traceback
 from tavily import TavilyClient
+from langsmith import traceable
+from google.auth.exceptions import RefreshError
 
 # 可以聯網搜尋的工具
 tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
@@ -43,6 +45,7 @@ def format_utc_to_tw_time(utc_str: str) -> str:
 
 # --- Define Tools ---
 @function_tool
+@traceable(run_type="tool")
 def log_workout(exercise_name: str, body_part: Literal["胸部","背部","腿部","肩膀","手臂","核心"], weight: float, sets: int, reps: int) -> str:
     """
     當使用者提到他們完成某項訓練動作，或提及記錄訓練動作，呼叫此工具將數據寫入資料庫。
@@ -74,6 +77,7 @@ def log_workout(exercise_name: str, body_part: Literal["胸部","背部","腿部
         return "[工具調用失敗]：寫入資料庫失敗，請告知使用者系統發生內部錯誤，稍後再試。"
 
 @function_tool
+@traceable(run_type="tool")
 def get_workout_analytics(days: int, 
                         body_parts: Optional[List[Literal["胸部", "背部", "腿部", "肩膀", "手臂", "核心"]]] = None,  # Optional 可選填，不限定只能一種
                         ) -> str: # 回傳的字串，給 LLM 讀的
@@ -176,19 +180,25 @@ def fetch_workout_analytics(days: int, body_parts: Optional[List[str]] = None) -
         return "[工具調用失敗]：查詢健身記錄失敗，請告知使用者系統發生內部錯誤，稍後再試。"
 
 @function_tool
-def log_food_record(meal_type: str, food_name: str) -> str:
+@traceable(run_type="tool")
+def save_nutrition_to_database(meal_type: str, food_name: str) -> str:
     """
-    當使用者傳送圖片，並「表達」要儲存或記錄這餐飲食時才呼叫，
-    如果只傳圖片且未給指令，且圖片為食物、飲食時，要詢問使用者是否要記錄分析此圖片到資料庫。
-    Args:
+    當使用者傳送圖片，並「表達」要儲存或記錄這餐飲食時（例如說：「幫我記錄這餐」）呼叫此工具。
+    如果是單純傳送圖片但未給予指令，請先分析圖片內容並詢問使用者是否需要記錄。
+    
+    參數:
         meal_type: 
-            - 飲食時段，根據使用者給予的餐點時段判斷：必須從以下選項選擇其一：'Breakfast', 'Lunch', 'Dinner', 'Snack', 'MidnightSnack'。
-            - 強制詢問：若使用者「未說明」是哪一餐，禁止猜測，請先詢問使用者。
-        food_name: 食物名稱。若使用者未提供，請根據視覺分析結果自行填入（例如：牛肉麵、雞肉沙拉），但要詢問使用者名稱是否正確。
+            - 必須為以下之一: 'Breakfast', 'Lunch', 'Dinner', 'Snack', 'MidnightSnack'。
+            - 若使用者未明確說明，請根據當前系統時間 (now_str) 進行推斷：
+                - 05:00 - 10:59 -> Breakfast
+                - 11:00 - 14:59 -> Lunch
+                - 17:00 - 20:59 -> Dinner
+                - 21:00 - 04:59 -> MidnightSnack
+                - 其他時間或非正餐 -> Snack
+        food_name: 食物名稱。若使用者未提供，請根據視覺分析結果自行填入，但要在回覆中告知使用者你辨識出的名稱。
     """
     try:
         # 從 agent 內定義的 ContextVar 變數中取得圖片網址
-        # 網址一定是 bucket 內存的，因為是從前端傳給後端再呼叫 chat api 的
         image_url = current_image_ctx.get()
 
         if not image_url:
@@ -197,17 +207,20 @@ def log_food_record(meal_type: str, food_name: str) -> str:
         print(f"⚙️ [Tool 執行] log_food_record: img_url={image_url}")
 
         path_in_bucket = image_url.split('chat_images/')[1]
+        # 增加時間戳記避免同檔名衝突
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        new_path_in_bucket = f"{timestamp}_{path_in_bucket}"
 
         # 從 chat_images 下載檔案內容
         file_content = supabase.storage.from_('chat_images').download(path_in_bucket)
 
-        # 把剛剛下載的檔案 (圖片) 上傳一份到 food_images 的 bucket 上，就跟 food/add 前端操作一樣
+        # 把剛剛下載的檔案 (圖片) 上傳一份到 food_images 的 bucket 上
         supabase.storage.from_('food_images').upload(
-            path=path_in_bucket,
+            path=new_path_in_bucket,
             file=file_content,
         )
 
-        new_food_url = supabase.storage.from_('food_images').get_public_url(path_in_bucket)
+        new_food_url = supabase.storage.from_('food_images').get_public_url(new_path_in_bucket)
 
         # 呼叫 AI 分析圖片
         ai_result = OpenAIService.analyze_food_image(new_food_url, food_name, meal_type)
@@ -219,18 +232,21 @@ def log_food_record(meal_type: str, food_name: str) -> str:
             meal_type=meal_type
         )
 
+        if not save_record:
+            return "[工具調用失敗]：雖然 AI 分析成功，但資料庫儲存失敗。請告知使用者稍後再試。"
+
         ai_result_dict = ai_result.model_dump()  # pyｄantic 物件轉成 dict
 
-        if save_record:
-            return f"[Tool Output]: 已成功分析圖片，並寫入資料庫，以下是飲食分析結果:\n食物名稱：{food_name}，熱量：{ai_result_dict['calories']}大卡，蛋白質：{ai_result_dict['protein']}克，脂肪：{ai_result_dict['fat']}克，碳水：{ai_result_dict['carbs']}克，評分：{ai_result_dict['score']}分，建議：{ai_result_dict['coach_comment']}\n"
+        return f"[Tool Output]: 已成功分析圖片，並寫入資料庫，以下是飲食分析結果:\n食物名稱：{food_name}，熱量：{ai_result_dict['calories']}大卡，蛋白質：{ai_result_dict['protein']}克，脂肪：{ai_result_dict['fat']}克，碳水：{ai_result_dict['carbs']}克，評分：{ai_result_dict['score']}分，建議：{ai_result_dict['coach_comment']}\n"
         
     except Exception as e:
         error_traceback = traceback.format_exc()
         print(f"[系統錯誤]: {error_traceback}")
-        return "[工具調用失敗]：分析飲食圖片或寫入資料庫失敗，請告知使用者系統發生內部錯誤，稍後再試。"
+        return f"[工具調用失敗]：分析飲食圖片或寫入資料庫時發生錯誤: {str(e)}"
 
 
 @function_tool
+@traceable(run_type="tool")
 async def create_calendar_event(summary: str, start_time: str, user_id: str = "tester_01", duration_minutes: int = 60) -> str:
     """
     當使用者想要「預約」、「安排」、「約定」任何未來的行程（健身、吃飯、上課等）時，必須呼叫此工具。
@@ -248,9 +264,9 @@ async def create_calendar_event(summary: str, start_time: str, user_id: str = "t
         # 建立可以操作"該使用者"行事曆的物件
         calendar = gm.get_service('calendar', 'v3')
 
-        # 首次操作 google 服務要先授權
+        # 首次操作 google 服務要先授權 (是新使用者，他剛開通帳號因此資料庫裡的 refresh token = '未開通權限')
         if not calendar:
-            return f"[工具調用失敗]: 需要使用者進行操作，使用者尚未連結 Google 日曆權限。請告知使用者點擊此連結完成授權，否則無法建立行程**[👉 點擊此處連結進行授權](http://localhost:8000/api/v1/auth/google/login)**"
+            return f"幫我預約3/27晚上10.練二頭"
         
         print(f"⚙️ [Tool 執行] create_calendar_event: 正在建立行程 '{summary}'")
         start_dt = datetime.fromisoformat(start_time)
@@ -267,12 +283,22 @@ async def create_calendar_event(summary: str, start_time: str, user_id: str = "t
         result = calendar.events().insert(calendarId='primary', body=event).execute()
         return f"[Tool Output]✅ 行程已建立！名稱：{summary}，連結：[點我查看]({result.get('htmlLink')})"
 
+    except RefreshError as e:
+        # 當 Token 失效、被撤銷或過期時會進到這裡
+        print(f"⚠️ [授權失效]: 使用者 {user_id} 的 Google Token 已過期或被撤銷")
+        
+        return (
+            f"[工具調用失敗]: 由於您的 Google 授權已過期或被撤銷，系統無法自動建立行程。請點擊下方連結重新登入授權**，完成後即可恢復使用：\n"
+            f"**[👉 點擊此處重新授權](http://localhost:8000/api/v1/auth/google/login)**"  # 重新導向授權頁面，再次刷新 refresh token
+        )
+
     except Exception as e:
         error_traceback = traceback.format_exc()
         print(f"[系統錯誤]: {error_traceback}")
         return f"[工具調用失敗]：建立行程失敗，請告知使用者系統發生內部錯誤，稍後再試。"
 
 @function_tool
+@traceable(run_type="tool")
 def web_search(query: str) -> str:
     """
     當使用者詢問關於健身科學、營養研究、健身動作細節、補給品等等任何關於健身營養的問題，或是任何 AI 知識庫可能過時的即時資訊時，
@@ -330,6 +356,4 @@ def web_search(query: str) -> str:
 
 
 # 將所有 tools 打包成一個 list，給 AI 讀取
-AGENT_TOOLS = [log_workout, get_workout_analytics, log_food_record, create_calendar_event, web_search]
-        
-        
+AGENT_TOOLS = [log_workout, get_workout_analytics, save_nutrition_to_database, create_calendar_event, web_search]
