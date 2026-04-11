@@ -46,15 +46,15 @@ def format_utc_to_tw_time(utc_str: str) -> str:
 # --- Define Tools ---
 @function_tool
 @traceable(run_type="tool")
-def log_workout(exercise_name: str, body_part: Literal["胸部","背部","腿部","肩膀","手臂","核心"], weight: float, sets: int, reps: int) -> str:
+def record_workout_exercise(exercise_name: str, body_part: Literal["胸部","背部","腿部","肩膀","手臂","核心"], weight: float, sets: int, reps: int) -> str:
     """
-    當使用者提到他們完成某項訓練動作，或提及記錄訓練動作，呼叫此工具將數據寫入資料庫。
+    當使用者提到他們完成某項訓練動作，或提及記錄訓練動作，呼叫此工具將數據寫入系統。
     參數:
         exercise_name: 訓練動作名稱。請「絕對保留」使用者原本輸入的原始語言與字詞，絕對不要自行翻譯成英文。
         body_part: 訓練部位，請根據使用者的描述（如：胸肌、練胸、推胸），自動理解語意並映射到最符合的部位選項。
     """
     try:
-        print(f"⚙️ [Tool 執行] log_workout: {body_part} - {exercise_name} {weight}kg")
+        print(f"⚙️ [Tool 執行] record_workout_exercise: {body_part} - {exercise_name} {weight}kg")
 
         # 因為 work_repo 內函式吃的是 WorkoutLogRequest 物件，所以要將參數組裝
         workout_data = WorkoutLogRequest(
@@ -74,15 +74,15 @@ def log_workout(exercise_name: str, body_part: Literal["胸部","背部","腿部
         return "[工具調用失敗]：寫入失敗，請告訴使用者提供的訓練數據格式不合理。"
     except Exception as e:
         print(f"[系統錯誤]: {e}")
-        return "[工具調用失敗]：寫入資料庫失敗，請告知使用者系統發生內部錯誤，稍後再試。"
+        return "[工具調用失敗]：寫入系統失敗，請告知使用者系統發生內部錯誤，稍後再試。"
 
 @function_tool
 @traceable(run_type="tool")
-def get_workout_analytics(days: int, 
+def analyze_workout_progress(days: int, 
                         body_parts: Optional[List[Literal["胸部", "背部", "腿部", "肩膀", "手臂", "核心"]]] = None,  # Optional 可選填，不限定只能一種
                         ) -> str: # 回傳的字串，給 LLM 讀的
     """
-    查詢使用者過往的健身記錄，可以根據天數、部位、進行精細查詢，查詢完畢後，會自動分析使用者的訓練狀況，並給出建議。
+    查詢使用者過往的健身記錄，可以根據天數、部位、進行精細查詢，查詢完畢後，會自動分析使用者的訓練狀況與進步幅度。
     參數：
         days: 查詢的天數，若使用者並未給予天數參數，則預設為 7 天，若使用者問「最近」，代入 7，若問「這個月」，帶入 30。
         body_part: (選填) 欲查詢的部位，可多選，若未指定，則代表查詢全部部位，必須自動將使用者口語化的部位（如：練胸、胸肌）歸類到選項中。
@@ -181,21 +181,14 @@ def fetch_workout_analytics(days: int, body_parts: Optional[List[str]] = None) -
 
 @function_tool
 @traceable(run_type="tool")
-def save_nutrition_to_database(meal_type: str, food_name: str) -> str:
+def record_food_intake_with_vision(meal_type: str, food_name: str) -> str:
     """
     當使用者傳送圖片，並「表達」要儲存或記錄這餐飲食時（例如說：「幫我記錄這餐」）呼叫此工具。
-    如果是單純傳送圖片但未給予指令，請先分析圖片內容並詢問使用者是否需要記錄。
-    
     參數:
         meal_type: 
             - 必須為以下之一: 'Breakfast', 'Lunch', 'Dinner', 'Snack', 'MidnightSnack'。
-            - 若使用者未明確說明，請根據當前系統時間 (now_str) 進行推斷：
-                - 05:00 - 10:59 -> Breakfast
-                - 11:00 - 14:59 -> Lunch
-                - 17:00 - 20:59 -> Dinner
-                - 21:00 - 04:59 -> MidnightSnack
-                - 其他時間或非正餐 -> Snack
-        food_name: 食物名稱。若使用者未提供，請根據視覺分析結果自行填入，但要在回覆中告知使用者你辨識出的名稱。
+            - 若使用者未明確說明，請根據當前系統時間進行推斷。
+        food_name: 食物名稱。若使用者未提供，請根據視覺分析結果自行填入。
     """
     try:
         # 從 agent 內定義的 ContextVar 變數中取得圖片網址
@@ -204,7 +197,7 @@ def save_nutrition_to_database(meal_type: str, food_name: str) -> str:
         if not image_url:
             return "[工具調用失敗]：未找到圖片網址，請告知試著重新傳送圖片。"
 
-        print(f"⚙️ [Tool 執行] log_food_record: img_url={image_url}")
+        print(f"⚙️ [Tool 執行] record_food_intake_with_vision: img_url={image_url}")
 
         path_in_bucket = image_url.split('chat_images/')[1]
         # 增加時間戳記避免同檔名衝突
@@ -233,27 +226,27 @@ def save_nutrition_to_database(meal_type: str, food_name: str) -> str:
         )
 
         if not save_record:
-            return "[工具調用失敗]：雖然 AI 分析成功，但資料庫儲存失敗。請告知使用者稍後再試。"
+            return "[工具調用失敗]：記錄失敗。請告知使用者稍後再試。"
 
         ai_result_dict = ai_result.model_dump()  # pyｄantic 物件轉成 dict
 
-        return f"[Tool Output]: 已成功分析圖片，並寫入資料庫，以下是飲食分析結果:\n食物名稱：{food_name}，熱量：{ai_result_dict['calories']}大卡，蛋白質：{ai_result_dict['protein']}克，脂肪：{ai_result_dict['fat']}克，碳水：{ai_result_dict['carbs']}克，評分：{ai_result_dict['score']}分，建議：{ai_result_dict['coach_comment']}\n"
+        return f"[Tool Output]: 已成功分析圖片並記錄，以下是飲食分析結果:\n食物名稱：{food_name}，熱量：{ai_result_dict['calories']}大卡，蛋白質：{ai_result_dict['protein']}克，脂肪：{ai_result_dict['fat']}克，碳水：{ai_result_dict['carbs']}克，評分：{ai_result_dict['score']}分，建議：{ai_result_dict['coach_comment']}\n"
         
     except Exception as e:
         error_traceback = traceback.format_exc()
         print(f"[系統錯誤]: {error_traceback}")
-        return f"[工具調用失敗]：分析飲食圖片或寫入資料庫時發生錯誤: {str(e)}"
+        return f"[工具調用失敗]：分析或記錄飲食時發生錯誤: {str(e)}"
 
 
 @function_tool
 @traceable(run_type="tool")
-async def create_calendar_event(summary: str, start_time: str, user_id: str = "tester_01", duration_minutes: int = 60) -> str:
+async def schedule_appointment(summary: str, start_time: str, user_id: str = "tester_01", duration_minutes: int = 60) -> str:
     """
-    當使用者想要「預約」、「安排」、「約定」任何未來的行程（健身、吃飯、上課等）時，必須呼叫此工具。
-    這是系統唯一的日曆寫入管道。禁止對使用者說你「無法安排」或「請手動設置」。 
+    當使用者想要「預約」、「安排」、「約定」任何未來的健身行程、課程或重要事件時，必須呼叫此工具。
+    這是系統唯一的行程排定管道。
     參數:
-        summary: 行程的簡短標題 (例如：去學校、練背)。
-        start_time: 開始時間。必須轉為 ISO 8601 格式 (YYYY-MM-DDTHH:MM:SS)，注意：如果你不知道今天的日期，請參考系統當前時間或詢問使用者。
+        summary: 行程的簡短標題 (例如：預約私人教練課、練背)。
+        start_time: 開始時間。必須轉為 ISO 8601 格式 (YYYY-MM-DDTHH:MM:SS)。
         user_id: 使用者的唯一識別碼。
         duration_minutes: 持續分鐘數，若使用者未提供，則預設為 60 分鐘。
     【重要輸出規則】：
@@ -268,7 +261,7 @@ async def create_calendar_event(summary: str, start_time: str, user_id: str = "t
         if not calendar:
             return f"幫我預約3/27晚上10.練二頭"
         
-        print(f"⚙️ [Tool 執行] create_calendar_event: 正在建立行程 '{summary}'")
+        print(f"⚙️ [Tool 執行] schedule_appointment: 正在建立行程 '{summary}'")
         start_dt = datetime.fromisoformat(start_time)
         end_dt = start_dt + timedelta(minutes=duration_minutes)
 
@@ -281,79 +274,71 @@ async def create_calendar_event(summary: str, start_time: str, user_id: str = "t
 
         # 新增行程 (primary 代表要操作使用者的主要日曆)
         result = calendar.events().insert(calendarId='primary', body=event).execute()
-        return f"[Tool Output]✅ 行程已建立！名稱：{summary}，連結：[點我查看]({result.get('htmlLink')})"
+        return f"[Tool Output]✅ 行程已排定！名稱：{summary}，連結：[點我查看]({result.get('htmlLink')})"
 
     except RefreshError as e:
         # 當 Token 失效、被撤銷或過期時會進到這裡
         print(f"⚠️ [授權失效]: 使用者 {user_id} 的 Google Token 已過期或被撤銷")
         
         return (
-            f"[工具調用失敗]: 由於您的 Google 授權已過期或被撤銷，系統無法自動建立行程。請點擊下方連結重新登入授權**，完成後即可恢復使用：\n"
-            f"**[👉 點擊此處重新授權](http://localhost:8000/api/v1/auth/google/login)**"  # 重新導向授權頁面，再次刷新 refresh token
+            f"[工具調用失敗]: 由於您的 Google 授權已過期，無法自動排定行程。請點擊下方連結重新授權：\n"
+            f"**[👉 點擊此處重新授權](http://localhost:8000/api/v1/auth/google/login)**"
         )
 
     except Exception as e:
         error_traceback = traceback.format_exc()
         print(f"[系統錯誤]: {error_traceback}")
-        return f"[工具調用失敗]：建立行程失敗，請告知使用者系統發生內部錯誤，稍後再試。"
+        return f"[工具調用失敗]：排定行程失敗，請告知使用者稍後再試。"
 
 @function_tool
 @traceable(run_type="tool")
 def web_search(query: str) -> str:
     """
-    當使用者詢問關於健身科學、營養研究、健身動作細節、補給品等等任何關於健身營養的問題，或是任何 AI 知識庫可能過時的即時資訊時，
-    呼叫此工具進行聯網搜尋。
+    當使用者詢問關於健身科學、營養研究、動作細節、補給品建議，或任何即時健身資訊時，呼叫此工具聯網搜尋。
     參數:
-        query: 搜尋關鍵字，請將使用者的問題轉化為適合搜尋引擎的關鍵字(例如:「肌酸服用時間建議」)。
+        query: 搜尋關鍵字，請將使用者的問題轉化為適合搜尋健身知識的關鍵字。
     """
     if not tavily_client:
-        return f"[工具調用失敗]: 系統尚未配置 Tavily API 金鑰，無法進行聯網搜尋。"
+        return f"[工具調用失敗]: 聯網搜尋功能尚未啟用。"
     
     try:
-        print(f"🌐 [Tool 執行] web search: 正在搜尋 '{query}'")
+        print(f"🌐 [Tool 執行] web_search: 正在搜尋 '{query}'")
 
         response = tavily_client.search(
             query=query,
-            search_depth="advanced",   # 會掃描更多高質量的網站
+            search_depth="advanced",
             max_results=3,             
-            include_answer=True   # 根據搜尋到的多個網頁內容，讓 Tavily 先幫忙總結一個簡答
+            include_answer=True
         )
 
-        # 整理搜尋結果給 LLM 看，這個結果可能有多個網站的資訊
+        # 整理搜尋結果給 LLM 看
         search_results = []
 
-        # 若 Tavily 有提供答案則優先放入
         if response.get("answer"):
-            search_results.append(f"【核心答案】: {response['answer']}\n")
+            search_results.append(f"【核心解答】: {response['answer']}\n")
         
-        # 遍歷多個網站的搜尋結果，使用更直觀的標籤
         for i, result in enumerate(response.get("results", []), 1):
             search_results.append(
                 f"--- 來源 {i} ---\n"
-                f"網站標題: {result['title']}\n"
-                f"網址連結: {result['url']}\n"
-                f"內容內容: {result['content']}\n"
+                f"標題: {result['title']}\n"
+                f"網址: {result['url']}\n"
+                f"摘要: {result['content']}\n"
             )
             
         final_output = "\n".join(search_results)
 
         if not final_output:
-            return "[工具調用失敗]: 搜尋不到相關結果，請試著更換提問方式。"
+            return "[工具調用失敗]: 搜尋不到相關結果。"
         
-        # 強制 AI 如何「引用」的關鍵 Meta-prompt
         meta_prompt = (
-            "\n\n[指令: 請根據上述資訊回答，並嚴格遵守以下格式規範：\n"
-            "1. 你的回答正文應保持專業且溫暖，可以不用在正文中嵌入連結。\n"
-            "2. **在回覆內容的最後**，必須新增一個標題為『### 參考來源』的區塊。\n"
-            "3. 在該區塊中，請以列表形式顯示你參考的所有網站真實網址，可以讓使用者點擊跳轉到該網站。\n"
-            "4. 範例：『- 肌酸補充指南：[https://example.com/creatine-guide](https://example.com/creatine-guide)』。]\n"
+            "\n\n[指令: 請根據上述資訊回答，並在回覆最後新增一個標題為『### 參考來源』的區塊，列出真實網址供使用者點擊。]\n"
         )
         return f"[Tool Output]: \n\n{final_output}{meta_prompt}"
     
     except Exception as e:
         print(f"[聯網搜尋錯誤]: {e}")
-        return f"[工具調用失敗]: 聯網搜尋時發生錯誤，請稍後再試。"
+        return f"[工具調用失敗]: 聯網搜尋時發生錯誤。"
 
 
 # 將所有 tools 打包成一個 list，給 AI 讀取
-AGENT_TOOLS = [log_workout, get_workout_analytics, save_nutrition_to_database, create_calendar_event, web_search]
+AGENT_TOOLS = [record_workout_exercise, analyze_workout_progress, record_food_intake_with_vision, schedule_appointment, web_search]
