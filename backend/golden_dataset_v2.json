@@ -1,0 +1,354 @@
+[
+  {
+    "id": "GD-001",
+    "inputs": {
+      "user_query": "教練，練完可以吃香蕉嗎？還是要等一小時再吃？"
+    },
+    "outputs": {
+      "expected_tools": [],
+      "test_type": "positive",
+      "category": "basic_qa",
+      "intent": "飲食時機",
+      "difficulty": "easy",
+      "reference_response": "可以吃，而且其實不用特別等一小時。你練完願意主動補充，這個觀念很好。\n\n香蕉本身就是很適合訓練後的食物，因為它能提供比較快吸收的碳水，幫助補回訓練中消耗的能量。如果你這餐離上一餐有點久，或今天訓練量比較大，練後先吃一根香蕉是很合理的做法。若能再搭配一份蛋白質，像乳清、無糖優格或茶葉蛋，整體恢復會更完整。\n\n如果你只是想知道最實用的做法，我會建議你把重點放在「練後 1-2 小時內有補到碳水加蛋白質」就可以，不需要被時間卡得太死。訓練後記得補水，今天如果流汗比較多，也可以順手補一點電解質。"
+    }
+  },
+  {
+    "id": "GD-002",
+    "inputs": {
+      "user_query": "教練，我一週要練幾次才會有效果？天天練會比較快變壯嗎？"
+    },
+    "outputs": {
+      "expected_tools": [],
+      "test_type": "positive",
+      "category": "basic_qa",
+      "intent": "訓練頻率建議",
+      "difficulty": "easy",
+      "reference_response": "你會在意訓練頻率，代表你是真的想把效果做出來，這很好。\n\n對多數人來說，一週規律訓練 3 到 4 次就很夠用了，尤其是新手或剛重新開始訓練的人。肌肉不是在訓練當下長出來，而是在恢復期間修復與適應，所以天天練不一定會更快，反而可能因為累積疲勞、睡眠不足或關節壓力過高，讓表現卡住。\n\n如果你想要穩定變壯，我會更建議你追求「每週做得到的頻率」，而不是最猛的頻率。先把訓練、吃飯和睡眠都穩下來，進步通常會比硬撐天天練還要快。今天也別忘了把休息當成訓練的一部分。"
+    }
+  },
+  {
+    "id": "GD-003",
+    "inputs": {
+      "user_query": "深蹲和腿推哪個對增加腿部肌肉比較有效？"
+    },
+    "outputs": {
+      "expected_tools": [],
+      "test_type": "positive",
+      "category": "basic_qa",
+      "intent": "動作比較",
+      "difficulty": "easy",
+      "reference_response": "這題問得很好，因為深蹲跟腿推都能長腿，但強項不太一樣。\n\n如果你想要整體下肢發展更完整，深蹲通常更值得當主力。它不只刺激大腿前側，還會一起用到臀部、核心和整體穩定能力，對力量基礎與功能性都很有幫助。腿推的優勢則是你比較容易把注意力放在腿部出力，尤其當你想安全地累積訓練量、把股四頭肌做得更飽滿時，腿推會很好用。\n\n實際上不用二選一。多數情況下，我會建議你把深蹲放前面當主動作，再用腿推補足訓練量，效果通常比只做其中一個更好。練腿日結束後記得補點碳水和蛋白質，恢復會更順。"
+    }
+  },
+  {
+    "id": "GD-004",
+    "inputs": {
+      "user_query": "教練，乳清蛋白和雞蛋白質哪個吸收比較好？"
+    },
+    "outputs": {
+      "expected_tools": [],
+      "test_type": "positive",
+      "category": "basic_qa",
+      "intent": "營養知識",
+      "difficulty": "easy",
+      "reference_response": "兩個都很好，差別主要在吸收速度和使用情境，不是哪個絕對比較高級。\n\n乳清蛋白的優勢是方便、吸收快，特別適合訓練後或你趕時間的時候補充。雞蛋也是高品質蛋白質，胺基酸組成很完整，只是消化速度相對慢一點，也更有飽足感，所以放在日常正餐裡很適合。從肌肉蛋白合成的角度來看，只要一天總蛋白質有吃夠，兩者其實都能幫助增肌與恢復。\n\n如果你想走最實用路線，我會建議訓練後需要方便就用乳清，平常飲食就把雞蛋放進去。重點不是只選一個，而是你能不能長期穩定補到足夠蛋白質。今天也記得多喝水，尤其如果你有補乳清的話。"
+    }
+  },
+  {
+    "id": "GD-005",
+    "inputs": {
+      "user_query": "我剛剛做了深蹲，60公斤，做了3組，每組12下，幫我記一下。"
+    },
+    "outputs": {
+      "expected_tools": ["record_workout_exercise"],
+      "expected_args": {
+        "exercise_name": "深蹲",
+        "body_part": "腿部",
+        "weight": 60,
+        "sets": 3,
+        "reps": 12
+      },
+      "test_type": "positive",
+      "category": "tool_use",
+      "intent": "log_workout",
+      "difficulty": "easy",
+      "reference_response": "傑凱，收到，我已經幫你記下這次深蹲了。\n\n- 動作：深蹲\n- 重量：60 kg\n- 組數：3 組\n- 次數：每組 12 下\n\n深蹲是很扎實的下肢複合動作，會同時吃到腿部與核心穩定。你今天這個組數和次數配置，對肌肥大跟動作品質都很不錯。\n\n如果做完有明顯喘或腿部充血，那代表訓練刺激有到位。訓練後記得補充水分和蛋白質，今天晚上也盡量早點休息，恢復會更好。"
+    }
+  },
+  {
+    "id": "GD-006",
+    "inputs": {
+      "user_query": "幫我看看我這一個月練腿的進步狀況。"
+    },
+    "outputs": {
+      "expected_tools": ["analyze_workout_progress"],
+      "expected_args": {
+        "days": 30,
+        "body_parts": ["腿部"]
+      },
+      "test_type": "positive",
+      "category": "tool_use",
+      "intent": "progress_analysis",
+      "difficulty": "easy",
+      "reference_response": "好，我幫你看這一個月的腿部訓練趨勢了。\n\n從整體方向來看，你的腿部訓練是有在穩定推進的。只要重量、總次數、或完成品質有慢慢往上，你的下肢力量和肌肉刺激就走在正確方向上。腿部進步通常不一定是每次都大幅加重，有時候是同樣重量做得更穩、休息更一致，這也算進步。\n\n如果你最近覺得腿部恢復還不錯，下個階段可以考慮在主動作上小幅加重，或把其中一個輔助動作的總量拉高一點。腿部訓練很吃恢復，今晚記得把睡眠顧好，這會直接影響下次表現。"
+    }
+  },
+  {
+    "id": "GD-007",
+    "inputs": {
+      "user_query": "我想預約明天下午兩點去健身房練背，幫我排進課表。"
+    },
+    "outputs": {
+      "expected_tools": ["schedule_appointment"],
+      "expected_args": {
+        "summary": "練背",
+        "duration_minutes": 60
+      },
+      "test_type": "positive",
+      "category": "tool_use",
+      "intent": "預約行事曆",
+      "difficulty": "easy",
+      "reference_response": "好，已經幫你安排好了。\n\n- 行程：練背\n- 時間：明天下午 2:00\n- 時長：60 分鐘\n\n背部訓練做得穩，對姿勢、肩胛控制和整體體態都很有幫助。你明天如果要做划船或下拉，記得先把肩胛啟動好，感受度通常會差很多。\n\n明天出發前可以先補一點碳水，訓練時比較有力。也別忘了提早準備水壺，我們把這堂練紮實。"
+    }
+  },
+  {
+    "id": "GD-008",
+    "inputs": {
+      "user_query": "最近網路上很紅的『補給品 ashwagandha』對健身真的有效嗎？"
+    },
+    "outputs": {
+      "expected_tools": ["web_search"],
+      "expected_args": {
+        "query": "ashwagandha 健身 效果 研究"
+      },
+      "test_type": "positive",
+      "category": "tool_use",
+      "intent": "知識搜尋",
+      "difficulty": "medium",
+      "reference_response": "這題很值得查，因為 ashwagandha 最近真的很多人在講。\n\n目前研究方向大致上是偏正面的，它比較可能幫助的是壓力調節、睡眠品質和恢復感受，間接讓訓練表現變穩。有些研究也看到力量、肌力輸出或疲勞感改善的可能性，但效果通常不是那種吃了就突然大幅進步的等級，而且不同產品劑量和萃取標準差很多。\n\n如果你有興趣，可以把它當成輔助選項，但不要把它看成核心。真正影響你健身成果的，還是訓練安排、熱量攝取、蛋白質和睡眠。若你本身有在吃藥、甲狀腺問題或容易腸胃不適，開始前先保守一點會比較穩。"
+    }
+  },
+  {
+    "id": "GD-009",
+    "inputs": {
+      "user_query": "幫我記錄這碗牛肉麵，這是我今天的午餐。",
+      "image_url": "https://gcwpcyivbfwhombmwbud.supabase.co/storage/v1/object/public/food_images/food_images/1774161197360-vn5obuv8gab.jpg"
+    },
+    "outputs": {
+      "expected_tools": ["record_food_intake_with_vision"],
+      "expected_args": {
+        "meal_type": "Lunch",
+        "food_name": "牛肉麵"
+      },
+      "test_type": "positive",
+      "category": "tool_use",
+      "intent": "food_logging",
+      "difficulty": "easy",
+      "reference_response": "傑凱，這份午餐我幫你記錄好了。\n\n- 餐別：Lunch\n- 食物：牛肉麵\n\n牛肉麵這餐的組成其實很適合當正餐，牛肉可以補到蛋白質和鐵，麵條則提供主要碳水，對下午活動或訓練前後都算實用。當然實際熱量還是會受到份量、湯量和油脂多寡影響，但作為午餐是有飽足感也有功能性的。\n\n如果你今天後面活動量不小，這餐是撐得住的。若近期在控制熱量，可以之後多留意湯和額外油脂的攝取。記得下午也要補水，尤其吃麵食和湯類後更容易忽略喝水。"
+    }
+  },
+  {
+    "id": "GD-010",
+    "inputs": {
+      "user_query": "我這週練得好嗎？",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "教練我最近狀態不太好，睡眠不足，你覺得我還要繼續練嗎？"
+        },
+        {
+          "role": "assistant",
+          "content": "睡眠不足時訓練強度應適當降低，身體需要充足休息來恢復與成長。建議這週以輕量維持訓練為主，不要強求 PR。"
+        }
+      ]
+    },
+    "outputs": {
+      "expected_tools": ["analyze_workout_progress"],
+      "expected_args": {
+        "days": 7
+      },
+      "test_type": "positive",
+      "category": "multi_turn",
+      "intent": "週分析（含脈絡）",
+      "difficulty": "medium",
+      "reference_response": "傑凱，我有把你這週的狀況連同前面提到的睡眠一起放進來看。\n\n如果你這週的訓練量比平常少一點，這不一定是退步，反而可能是很成熟的調整。睡眠不足時，力量輸出、恢復速度和專注度本來就會下降，這時候願意把節奏放穩，比硬衝更有助於保住長期表現。你這週只要還有維持活動和基本訓練，其實就已經做得不錯了。\n\n下週如果睡眠有回來，我們再把強度慢慢拉回去會更聰明。這幾天先把作息跟水分顧好，身體恢復起來，訓練感覺通常會差很多。"
+    }
+  },
+  {
+    "id": "GD-011",
+    "inputs": {
+      "user_query": "那上背我要怎麼加強？",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "教練我覺得我的背部訓練不太均衡，下背很有感但上背沒什麼感覺。"
+        },
+        {
+          "role": "assistant",
+          "content": "這是很常見的問題！上背（尤其是斜方肌中下段與菱形肌）確實容易被忽略。通常是划船的角度不對，或是使用過多的二頭肌代償。"
+        }
+      ]
+    },
+    "outputs": {
+      "expected_tools": [],
+      "test_type": "positive",
+      "category": "multi_turn",
+      "intent": "動作建議（承接上文）",
+      "difficulty": "medium",
+      "reference_response": "可以，我們就接著把上背補強這件事做好。\n\n如果你下背很有感、上背卻沒感覺，通常是划船路徑、肩胛控制，或是重量太重導致代償。你可以先從幾個方向調整：划船時讓手肘往後外拉一點、動作頂端多停半秒、先想肩胛往後夾再拉重量。像面拉、胸托划船、坐姿划船這些動作，通常都很適合拿來建立上背感受度。\n\n你不用一次加很多新動作，先挑 1 到 2 個放進課表，連續做幾週，感受通常就會明顯變好。練背日結束後記得放鬆胸前和前肩，這對肩胛活動也有幫助。"
+    }
+  },
+  {
+    "id": "GD-012",
+    "inputs": {
+      "user_query": "好，那幫我預約後天早上十點練背。",
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "教練我想開始認真練背，你有空幫我安排嗎？"
+        },
+        {
+          "role": "assistant",
+          "content": "當然！練背是非常值得投資的訓練，對體態和功能性都有很大幫助。你希望安排在什麼時間？"
+        }
+      ]
+    },
+    "outputs": {
+      "expected_tools": ["schedule_appointment"],
+      "expected_args": {
+        "summary": "練背",
+        "duration_minutes": 60
+      },
+      "test_type": "positive",
+      "category": "multi_turn",
+      "intent": "承接脈絡後預約",
+      "difficulty": "medium",
+      "reference_response": "好，後天早上十點的練背我幫你排好了。\n\n- 行程：練背\n- 時間：後天上午 10:00\n- 時長：60 分鐘\n\n既然你前面就說想認真練背，這個安排很剛好。早上訓練通常精神不錯，但建議還是先補一點容易消化的碳水，像香蕉或吐司，會比較有力。\n\n到時候訓練前先把肩胛啟動一下，背部發力會更順。也別忘了前一天早點睡，這對隔天訓練品質差很多。"
+    }
+  },
+  {
+    "id": "GD-013",
+    "inputs": {
+      "user_query": "幫我記錄今天的訓練：臥推 80kg 4組8下，飛鳥 15kg 3組12下，下斜推 60kg 3組10下。",
+      "conversation_history": []
+    },
+    "outputs": {
+      "expected_tools": ["record_workout_exercise"],
+      "expected_args": {
+        "exercise_name": "臥推",
+        "body_part": "胸部",
+        "weight": 80,
+        "sets": 4,
+        "reps": 8
+      },
+      "test_type": "positive",
+      "category": "multi_turn",
+      "intent": "批次記錄訓練",
+      "difficulty": "hard",
+      "reference_response": "傑凱，收到，今天的胸部訓練我幫你整理進去了。\n\n- 臥推：80 kg，4 組，8 下\n- 飛鳥：15 kg，3 組，12 下\n- 下斜推：60 kg，3 組，10 下\n\n這份課表的結構很完整，前面用臥推撐主要張力，後面再用飛鳥和下斜推把胸部刺激補滿，對肌肥大很有幫助。整體訓練量算扎實，如果你今天每組都做得穩，品質是很不錯的。\n\n今晚可以優先補蛋白質和一點碳水，幫助恢復。胸推動作做完也別忘了放鬆前肩，這樣下次推舉會更順。"
+    }
+  },
+  {
+    "id": "GD-014",
+    "inputs": {
+      "user_query": "深蹲要怎麼蹲才不會傷到膝蓋？"
+    },
+    "outputs": {
+      "expected_tools": [],
+      "test_type": "negative",
+      "category": "boundary",
+      "intent": "動作教學（Trap：勿觸發記錄工具）",
+      "difficulty": "medium",
+      "reasoning": "使用者詢問動作教學，不應觸發 record_workout_exercise 記錄數據。",
+      "reference_response": "這題很重要，因為深蹲能不能長期做，關鍵就在關節舒服不舒服。\n\n想降低膝蓋壓力，先抓幾個重點就好：腳掌踩穩、核心先收緊、下蹲時膝蓋方向跟腳尖一致，不要往內夾。很多人膝蓋不舒服，不一定是深蹲本身有問題，而是重心跑太前面、腳踝活動度不夠，或是下蹲時只用膝蓋去扛，沒有把髖一起帶進來。\n\n你可以先把重量降一點，專注把動作蹲穩，再慢慢加回去。如果是明顯疼痛而不是一般訓練痠感，就先不要硬撐，休息和檢查動作會比勉強完成更重要。"
+    }
+  },
+  {
+    "id": "GD-015",
+    "inputs": {
+      "user_query": "幫我記一下我今天吃了一顆蘋果。"
+    },
+    "outputs": {
+      "expected_tools": [],
+      "test_type": "negative",
+      "category": "boundary",
+      "intent": "無圖飲食記錄（Trap：勿觸發視覺工具）",
+      "difficulty": "medium",
+      "reasoning": "record_food_intake_with_vision 依賴圖片，沒有圖片時應引導使用者傳圖，而非直接呼叫工具。",
+      "reference_response": "可以，不過這邊我需要你補一張照片，才方便幫你正式記錄。\n\n因為食物紀錄工具會連同品項和份量一起判斷，像蘋果的大小、切塊與否，多少都會影響估算結果。有圖片的話，我才能比較穩地幫你存進系統。\n\n你直接拍一張傳給我就行，我會接著幫你記。順手提醒一下，水果雖然健康，但份量長期有在留意，控熱量時會更有感。"
+    }
+  },
+  {
+    "id": "GD-016",
+    "inputs": {
+      "user_query": "幫我安排一個訓練計畫。"
+    },
+    "outputs": {
+      "expected_tools": [],
+      "test_type": "negative",
+      "category": "boundary",
+      "intent": "計畫諮詢（Trap：勿觸發預約工具）",
+      "difficulty": "medium",
+      "reasoning": "使用者要的是諮詢規劃，不是直接預約行程，應先詢問目標與需求。",
+      "reference_response": "可以，我很樂意幫你安排，不過我想先把方向抓準，這樣計畫才會真的適合你。\n\n先告訴我兩件事就好：你的主要目標是增肌、減脂，還是單純想養成規律運動習慣？另外，你一週大概能穩定訓練幾天？這兩個資訊會直接決定課表怎麼分配、每次練多久，以及恢復怎麼安排。\n\n你回我這兩個重點後，我就能幫你拉出一個比較像樣、也比較做得到的版本。我們不用求完美，先做出能持續的計畫最重要。"
+    }
+  },
+  {
+    "id": "GD-017",
+    "inputs": {
+      "user_query": "幫我分析一下我最近的飲食和訓練。"
+    },
+    "outputs": {
+      "expected_tools": [],
+      "test_type": "negative",
+      "category": "boundary",
+      "intent": "模糊需求（Trap：勿盲目呼叫任何工具）",
+      "difficulty": "hard",
+      "reasoning": "需求不明確，應先詢問使用者要分析的時間範圍與具體面向，而非直接呼叫工具。",
+      "reference_response": "可以，我來幫你看，但我想先把範圍對齊一下，這樣分析才不會太散。\n\n你想看的是最近一週、最近一個月，還是更長一段時間？另外你比較想聚焦在訓練表現、飲食控制，還是兩個一起看？如果你有特別在意的問題，像是體重沒變、力量停住，或是吃得很亂，也可以直接告訴我。\n\n你把時間範圍和重點丟給我，我就能用更準的角度幫你整理。先把問題問清楚，通常比急著下結論更有幫助。"
+    }
+  },
+  {
+    "id": "GD-018",
+    "inputs": {
+      "user_query": "教練，我做槓鈴臥推時，感覺三頭肌出的力比胸肌多很多，肩膀也會有點酸，這是什麼原因？"
+    },
+    "outputs": {
+      "expected_tools": [],
+      "test_type": "positive",
+      "category": "complex_reasoning",
+      "intent": "動作技術糾正",
+      "difficulty": "hard",
+      "reference_response": "這個感覺很常見，而且你有注意到胸、三頭和肩膀的出力差異，代表你的動作品質意識其實不錯。\n\n臥推時如果三頭肌特別有感、胸肌反而不明顯，常見原因包含握距偏窄、肩胛沒有穩定好，或下放位置太高，讓肩膀跟手臂接管太多工作。肩膀會酸，也常跟手肘外開太多、下放路徑不穩，或胸椎延展不夠有關。簡單說，就是你現在的推法可能比較像在用手和前肩把槓鈴撐起來，而不是讓胸肌在穩定的平台上主導發力。\n\n你下次可以先把重量降一點，確認幾件事：肩胛先後收下壓、胸口打開、手腕堆在前臂正上方、手肘角度不要太開。下放時把槓鈴帶到下胸附近，推起來時想像是用胸把重量推出去。先把路徑練穩，比急著追重量更能幫你解決這個問題。"
+    }
+  },
+  {
+    "id": "GD-019",
+    "inputs": {
+      "user_query": "我已經熱量赤字三週了，體重完全沒降，是我的代謝壞掉了嗎？還是我該進入補碳日 (Refeed Day)？"
+    },
+    "outputs": {
+      "expected_tools": [],
+      "test_type": "positive",
+      "category": "complex_reasoning",
+      "intent": "體重停滯期分析",
+      "difficulty": "hard",
+      "reference_response": "三週沒降真的會讓人很煩，先跟你說，這不代表你的代謝就壞掉了。\n\n在熱量赤字期間，體重停住很常見，因為體脂下降不一定會立刻反映在體重上。水分滯留、壓力、睡眠不足、月經週期、鹽分攝取，甚至只是前幾天吃比較多碳水，都可能把數字卡住。比起直接懷疑代謝，我會先檢查三件事：熱量紀錄有沒有真的準、日常活動量有沒有偷偷下降、以及近期恢復狀況是不是變差。\n\n至於 Refeed Day，不是不能用，但它比較像策略工具，不是看到停滯就一定要開。如果你已經赤字一段時間、訓練表現下滑、心理壓力很高，安排一天提高碳水到接近維持熱量是可以考慮的。只是前提還是先把基本盤確認好，不然很容易變成一次吃很多、但問題根本不在補碳。先穩住節奏，睡眠和壓力管理也一起顧，通常更有機會突破停滯。"
+    }
+  },
+  {
+    "id": "GD-020",
+    "inputs": {
+      "user_query": "教練，我的肩推已經卡關 50kg 一個月了，我該如何利用微量增重或週期化訓練來突破平台期？"
+    },
+    "outputs": {
+      "expected_tools": [],
+      "test_type": "positive",
+      "category": "complex_reasoning",
+      "intent": "平台期突破策略",
+      "difficulty": "hard",
+      "reference_response": "肩推卡在同一個重量一個月，其實很常見，尤其這個動作本來就很吃神經適應、穩定度和恢復。\n\n如果你想用週期化去突破，我會建議先把高強度和高訓練量分開。像是其中一天做偏力量的配置，例如 3 到 5 組、每組 3 到 5 下，讓身體適應更重的重量；另一個訓練日則改成中等重量、較高次數，去累積三角肌和三頭肌的總刺激。這樣做的好處是，你不會每次都卡在同一種疲勞裡，也比較容易同時把力量和肌肉基礎往上推。\n\n微量增重也很適合肩推，因為肩推不像深蹲或硬舉那麼容易一次跳很大。若器材允許，每次增加 0.5 到 1 公斤通常比硬跳 2.5 公斤更實際。除此之外，也別忽略側三角肌、後三角肌、上胸和三頭肌的輔助訓練。先把恢復、睡眠和肩關節狀態顧好，再讓進步慢慢堆上去，通常比硬衝更有效。"
+    }
+  }
+]
