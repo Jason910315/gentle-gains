@@ -34,10 +34,10 @@ export default function ChatPage() {
 
     // 這是 agent 所能調用的工具列表，在後端 tools.py 中定義
     const TOOLS = [
-        { id: 'log_workout', label: 'log_workout' },
-        { id: 'get_workout_analytics', label: 'get_workout_analytics' },
-        { id: 'log_food_record', label: 'log_food_record' },
-        { id: 'create_calendar_event', label: 'create_calendar_event' },
+        { id: 'record_workout_exercise', label: 'record_workout_exercise' },
+        { id: 'analyze_workout_progress', label: 'analyze_workout_progress' },
+        { id: 'record_food_intake_with_vision', label: 'record_food_intake_with_vision' },
+        { id: 'schedule_appointment', label: 'schedule_appointment' },
         { id: 'web_search', label: 'web_search' },
     ];
 
