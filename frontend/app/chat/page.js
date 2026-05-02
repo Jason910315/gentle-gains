@@ -114,7 +114,7 @@ export default function ChatPage() {
     // 使用者每次在輸入框打字，都會觸發
     const handleInputChange = (e) => {
         const value = e.target.value;
-        setInput(value);   // 每打一個字都會更新 input，會重新渲染頁面 (但不會渲染歷史對話)
+        setInput(value);   // 每打一個字都會更新 input，但不會動 messages，因此不會重新渲染歷史對話
 
         if (value === '/') {  // 當輸入框內容為 / 時，就顯示快捷鍵選單
             setShowCommandMenu(true);
