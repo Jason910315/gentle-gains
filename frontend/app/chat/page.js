@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, memo} from 'react';
 import remarkBreaks from 'remark-breaks';
 import { Send, User, Bot, Loader2, Trash2, Command, Image as ImageIcon, X, Wrench, Dumbbell, Utensils, Globe, Calendar} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';  // 將 md 轉成人類的語言
@@ -8,6 +8,33 @@ import remarkGfm from 'remark-gfm'; // 支援表格與程式碼區塊
 import { supabase } from '@/lib/supabaseClient';
 
 const CURRENT_SESSION_ID = "afc433a0-3898-4f1c-8423-934e553c716f" // 暫時的 session_id
+
+// 將歷史對話訊息包成一個 memo 元件，memo 會記憶組件的渲染結果，在組件的 props 沒有改變時，跳過該 props 被重新渲染
+// 要這樣包是因為之前打字都會觸發重新渲染，造成所有歷史訊息都要渲染一次，打字延遲極高
+const MessageBubble = memo(function MessageBubble({msg}){
+    return (
+        <div
+            // 如果是 user 就反轉，讓使用者的訊息在右邊
+            // 預設 (機器人)：順序是 [頭像][訊息框]，靠左對齊
+            className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
+        >
+            {/* 頭像 */}
+            <div className={`
+                w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0
+                ${msg.role === 'user' ? 'bg-gray-800 text-white' : 'bg-white border text-orange-500'}
+            `}>
+                {/* 角色顯示不同的頭像 */}
+                {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
+            </div>
+
+            {/* 訊息框 */}
+            <div className={`max-w-[80%] text-sm leading-relaxed break-words ${msg.role === 'user' ? 'px-4 py-2 rounded-2xl bg-gray-200 rounded-tr-none shadow-sm' : 'text-gray-700 py-2'}`}>
+                {msg.image_url && <img src={msg.image_url} className="rounded-lg mb-2 max-h-60" alt="chat-img" />}
+                <ReactMarkdown>{msg.content}</ReactMarkdown>
+            </div>
+        </div>
+    )
+});
 
 export default function ChatPage() {
     const [input, setInput] = useState("");   // 使用者輸入框內的 query
@@ -87,7 +114,7 @@ export default function ChatPage() {
     // 使用者每次在輸入框打字，都會觸發
     const handleInputChange = (e) => {
         const value = e.target.value;
-        setInput(value);   // 每打一個字都會更新 input，進而重新渲染頁面
+        setInput(value);   // 每打一個字都會更新 input，會重新渲染頁面 (但不會渲染歷史對話)
 
         if (value === '/') {  // 當輸入框內容為 / 時，就顯示快捷鍵選單
             setShowCommandMenu(true);
@@ -275,35 +302,8 @@ export default function ChatPage() {
 
                 {/* 把每一條訊息遞迴顯示在對話框中，才不會只顯示最新的那筆 (包含使用者和 AI 的)，msg 是從資料庫查出的每條訊息 */}
                 {messages.map((msg, index) => (
-                    <div
-                        key={index}
-                        // 如果是 user 就反轉，讓使用者的訊息在右邊
-                        // 預設 (機器人)：順序是 [頭像][訊息框]，靠左對齊
-                        className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
-                    >
-                        {/* 頭像 */}
-                        <div className={`
-                            w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0
-                            ${msg.role === 'user' ? 'bg-gray-800 text-white' : 'bg-white border text-orange-500'}
-                        `}>
-                            {/* 角色顯示不同的頭像 */}
-                            {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
-                        </div>
-
-                        {/* 訊息框 */}
-                        <div className={`
-                            max-w-[80%] text-sm leading-relaxed break-words
-                            ${msg.role === 'user'
-                                ? 'px-4 py-2 rounded-2xl bg-gray-200 rounded-tr-none shadow-sm'
-                                : 'text-gray-700 py-2'}
-                        `}>
-                            {/* 如果這則訊息有圖片，也要顯示圖片 (用剛剛取得的公開網址存取) */}
-                            {msg.image_url && (
-                                <img src={msg.image_url} className="rounded-lg mb-2 max-h-60" alt="chat-img" />
-                            )}
-                            <ReactMarkdown>{msg.content}</ReactMarkdown>
-                        </div>
-                    </div>
+                    // 呼叫剛剛定義的 MessageBubble 元件，並傳入 msg 作為 props，所以打字的時候會檢查歷史對話有沒有變，沒變的話不用重新渲染
+                    <MessageBubble key={index} msg={msg} />  
                 ))}
 
                 {/* Loading State */}
