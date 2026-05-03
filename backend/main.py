@@ -29,9 +29,9 @@ app.include_router(google_auth.router)
 if __name__ == "__main__":
     import uvicorn
 
-    # railway 部署後端才加入 HOST 變數，本地開發測試用 127.0.0.1，正式上線用 0.0.0.0
-    host = os.getenv("HOST", "127.0.0.1")
-    uvicorn.run(app, host=host, port=8000)
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host=host, port=port)
 
 
 
