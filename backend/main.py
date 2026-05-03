@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware # 導入 Session 中間件
 from app.router import api
 from app.router import google_auth
-import traceback
+import os
 
 app = FastAPI(title="GentlGains API endpoints")
 
@@ -28,7 +28,10 @@ app.include_router(google_auth.router)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+
+    # railway 部署後端才加入 HOST 變數，本地開發測試用 127.0.0.1，正式上線用 0.0.0.0
+    host = os.getenv("HOST", "127.0.0.1")
+    uvicorn.run(app, host=host, port=8000)
 
 
 
