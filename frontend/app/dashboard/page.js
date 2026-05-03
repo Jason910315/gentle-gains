@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { API_URL } from '@/lib/api';
 import { ResponsiveContainer, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, Radar,Tooltip, Legend } from 'recharts';
 import { Activity, Flame, Target, Trophy, Dumbbell, Utensils } from 'lucide-react';
 
@@ -11,7 +12,7 @@ const Dashboard = () => {
   // 每次頁面載入時都會重新抓取後端資料，並更新 data 狀態
   useEffect(() => {
     const fetchData = async () => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/dashboard/summary`, {
+      const response = await fetch(`${API_URL}/api/v1/dashboard/summary`, {
         method: 'GET', 
         headers: {
             'Content-Type': 'application/json'

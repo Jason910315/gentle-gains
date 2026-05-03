@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';  // 用於頁面跳轉
 import { supabase } from '@/lib/supabaseClient';
+import { API_URL } from '@/lib/api';
 import { ArrowLeft, Save, Dumbbell, Loader2, Eraser, MoveHorizontal } from 'lucide-react';
 import Link from 'next/link';
 
@@ -113,7 +114,7 @@ export default function AddWorkoutPage() {
                 return;
             }
             // 呼叫 API 以插入資料庫
-            const response = await fetch('http://127.0.0.1:8000/api/v1/workout', {
+            const response = await fetch(`${API_URL}/api/v1/workout`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import { API_URL } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -102,7 +103,7 @@ export default function AddFoodPage() {
             }
 
             // 2. 呼叫後端 API 進行 AI 分析
-            const response = await fetch('http://127.0.0.1:8000/api/v1/analyze', {
+            const response = await fetch(`${API_URL}/api/v1/analyze`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

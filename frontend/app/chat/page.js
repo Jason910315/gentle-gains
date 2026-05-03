@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, memo} from 'react';
+import { API_URL } from '@/lib/api';
 import remarkBreaks from 'remark-breaks';
 import { Send, User, Bot, Loader2, Trash2, Command, Image as ImageIcon, X, Wrench, Dumbbell, Utensils, Globe, Calendar} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';  // 將 md 轉成人類的語言
@@ -86,7 +87,7 @@ export default function ChatPage() {
         const fetch_caht_history = async () => {
             try {
                 // limit=0 代表歷史對話要取全部
-                const res = await fetch(`http://127.0.0.1:8000/api/v1/chat/history/${CURRENT_SESSION_ID}?limit=0`);
+                const res = await fetch(`${API_URL}/api/v1/chat/history/${CURRENT_SESSION_ID}?limit=0`);
 
                 if (!res.ok) throw new Error("Failed to load chat history");
 
@@ -211,7 +212,7 @@ export default function ChatPage() {
             setMessages((prev) => [...prev, { "role": "assistant", "content": "" }]);
             
             // 3. 這樣就可以拿之前的 image_url 當作參數傳給後端呼叫 chat api
-            const response = await fetch('http://127.0.0.1:8000/api/v1/chat', {
+            const response = await fetch(`${API_URL}/api/v1/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 // 後端要求的是 ChatRequest 物件

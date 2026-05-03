@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '@/lib/api';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { Utensils, Plus, Flame, Beef, Wheat, Droplets, Camera, X, MessageCircle, Star } from 'lucide-react';
