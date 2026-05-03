@@ -11,7 +11,7 @@ const Dashboard = () => {
   // 每次頁面載入時都會重新抓取後端資料，並更新 data 狀態
   useEffect(() => {
     const fetchData = async () => {
-      const response = await fetch('http://localhost:8000/api/v1/dashboard/summary', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/dashboard/summary`, {
         method: 'GET', 
         headers: {
             'Content-Type': 'application/json'
