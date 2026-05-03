@@ -2,7 +2,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from google_auth_oauthlib.flow import Flow
 from supabase import create_client, Client
-import os, datetime, traceback
+import os, datetime, traceback, json
+import tempfile
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -10,12 +11,8 @@ load_dotenv()
 
 router = APIRouter(prefix="/api/v1/auth/google", tags=["Google Auth"])
 
-# 我的 google oauth2 憑證位址
-current_file = Path(__file__).resolve()
-BASE_DIR = current_file.parent.parent
-CREDENTIALS_PATH= os.path.join(BASE_DIR, "AI_playground_jason_gentlegains.json")
-
-REDIRECT_URI = "http://localhost:8000/api/v1/auth/google/callback"  # 這個要跟 google 設定的 redirect uri 一樣
+# 有分為 railway 部署和本地開發部署 (記得 GCP 上要設定兩個 redirect uri，for railway 的就去伺服器上看他的網址把 localhost:8000 換成他的網址)
+REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/v1/auth/google/callback")
 
 # 可被操作的服務
 GOOGLE_SCOPES = os.getenv("GOOGLE_SCOPES").split()
@@ -24,9 +21,26 @@ supabase_url = os.getenv("SUPABASE_URL")
 supabase_key = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
 
+# 如何讀取 google oauth2 憑證檔案
+def get_credentials_path():
+    # 如果有環境變數（Railway），動態建立暫存檔
+    credentials_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
+    if credentials_json:
+        tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+        tmp.write(credentials_json)
+        tmp.flush()
+        return tmp.name
+
+    # for 本地開發部署，直接讀取本地檔案
+    current_file = Path(__file__).resolve()
+    BASE_DIR = current_file.parent.parent
+    CREDENTIALS_PATH = os.path.join(BASE_DIR, "AI_playground_jason_gentlegains.json")
+    return CREDENTIALS_PATH
+
 # 為每個使用者產生 google 的授權網址
 @router.get("/login")
 async def google_login(request: Request):
+    CREDENTIALS_PATH = get_credentials_path()
     # Flow 負責處理應用程式與 Google 認證伺服器之間的認證，並可以操作授權流程
     flow = Flow.from_client_secrets_file(
         CREDENTIALS_PATH,
@@ -58,6 +72,8 @@ async def google_callback(request: Request, code: str, state: str):
         # 2. 拿回當初的 code_verifier
         saved_verifier = request.session.get('code_verifier')
 
+        CREDENTIALS_PATH = get_credentials_path()
+
         flow = Flow.from_client_secrets_file(
             CREDENTIALS_PATH, 
             scopes=GOOGLE_SCOPES, 
@@ -85,8 +101,8 @@ async def google_callback(request: Request, code: str, state: str):
         request.session.pop('oauth_state', None)
         request.session.pop('code_verifier', None)
 
-        # 授權完後回到對話介面，要根據你前段對話介面的網域而定
-        frontend_chat_url = "http://192.168.206.1:3001/chat"
+        # 授權完後回到對話介面，要根據你前段對話介面的網域而定 (一樣要分為 railway 部署和本地開發部署)
+        frontend_chat_url = os.getenv("FRONTEND_URL", "http://localhost:3001/chat")
         
         # 授權完畢後要直接跳轉回對話介面
         return RedirectResponse(url=frontend_chat_url)

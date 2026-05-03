@@ -28,9 +28,14 @@ class GoogleManager:
         
     # 讀取 json 憑證內的內容
     def _load_client_config(self):
+        # for railway 部署
+        credentials_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
+        if credentials_json:
+            return json.loads(credentials_json).get("web")
+
+        # for 畚箕開發部署
         with open(CREDENTIALS_PATH, 'r') as f:
-            config = json.load(f)
-            return config.get("web")
+            return json.load(f).get("web")
 
     def _load_and_refresh_credentials(self):
         """
